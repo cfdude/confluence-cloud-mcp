@@ -23,18 +23,25 @@ export interface Page {
   title: string;
   spaceId: string;
   parentId?: string;
+  parentType?: 'page';
+  position?: number;
   authorId: string;
+  ownerId?: string;
+  lastOwnerId?: string | null;
   createdAt: string;
   version: {
     number: number;
     message?: string;
     createdAt: string;
+    minorEdit?: boolean;
+    authorId?: string;
   };
   body?: {
-    storage: {
+    storage?: {
       value: string;
       representation: 'storage';
     };
+    atlas_doc_format?: any;
   };
   _links: {
     webui: string;

@@ -53,16 +53,23 @@ export async function handleGetPage(
     }
 
     const page = await client.getPage(args.pageId);
-    const content = await client.getPageContent(args.pageId);
     
+    // Return raw API response to match curl output format
     const simplified = {
       id: page.id,
+      status: page.status,
       title: page.title,
       spaceId: page.spaceId,
-      version: page.version.number,
       parentId: page.parentId || null,
-      content: content,
-      url: page._links.webui
+      parentType: page.parentType,
+      position: page.position,
+      authorId: page.authorId,
+      ownerId: page.ownerId,
+      lastOwnerId: page.lastOwnerId,
+      createdAt: page.createdAt,
+      version: page.version,
+      body: page.body || {},
+      _links: page._links
     };
 
     return {
