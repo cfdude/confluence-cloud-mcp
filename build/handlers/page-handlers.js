@@ -1,4 +1,5 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { convertStorageToMarkdown } from "../utils/content-converter.js";
 export async function handleListPages(client, args) {
     try {
         if (!args.spaceId) {
@@ -35,15 +36,25 @@ export async function handleGetPage(client, args) {
             throw new McpError(ErrorCode.InvalidParams, "pageId is required");
         }
         const page = await client.getPage(args.pageId);
-        const content = await client.getPageContent(args.pageId);
+        // Convert the content to markdown if it exists
+        const markdownContent = page.body?.storage?.value
+            ? convertStorageToMarkdown(page.body.storage.value)
+            : '';
         const simplified = {
             id: page.id,
+            status: page.status,
             title: page.title,
             spaceId: page.spaceId,
-            version: page.version.number,
             parentId: page.parentId || null,
-            content: content,
-            url: page._links.webui
+            parentType: page.parentType,
+            position: page.position,
+            authorId: page.authorId,
+            ownerId: page.ownerId,
+            lastOwnerId: page.lastOwnerId,
+            createdAt: page.createdAt,
+            version: page.version,
+            content: markdownContent,
+            _links: page._links
         };
         return {
             content: [

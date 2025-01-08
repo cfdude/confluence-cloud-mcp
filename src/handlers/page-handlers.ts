@@ -1,6 +1,7 @@
 import { ConfluenceClient } from "../client/confluence-client.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { Page, PaginatedResponse } from "../types/index.js";
+import { convertStorageToMarkdown } from "../utils/content-converter.js";
 
 export async function handleListPages(
   client: ConfluenceClient,
@@ -54,7 +55,11 @@ export async function handleGetPage(
 
     const page = await client.getPage(args.pageId);
     
-    // Return raw API response to match curl output format
+    // Convert the content to markdown if it exists
+    const markdownContent = page.body?.storage?.value 
+      ? convertStorageToMarkdown(page.body.storage.value)
+      : '';
+
     const simplified = {
       id: page.id,
       status: page.status,
@@ -68,7 +73,7 @@ export async function handleGetPage(
       lastOwnerId: page.lastOwnerId,
       createdAt: page.createdAt,
       version: page.version,
-      body: page.body || {},
+      content: markdownContent,
       _links: page._links
     };
 

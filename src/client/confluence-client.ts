@@ -8,7 +8,7 @@ export class ConfluenceClient {
   constructor(config: ConfluenceConfig) {
     this.domain = config.domain;
     this.client = axios.create({
-      baseURL: `https://${config.domain}/wiki/api/v2`,
+      baseURL: `https://${config.domain}/wiki/rest/api`,
       auth: {
         username: config.email,
         password: config.apiToken
@@ -48,14 +48,18 @@ export class ConfluenceClient {
   }
 
   async getPage(pageId: string): Promise<Page> {
-    const response = await this.client.get(`/pages/${pageId}`);
+    const response = await this.client.get(`/content/${pageId}`, {
+      params: {
+        expand: 'body.storage,version'
+      }
+    });
     return response.data;
   }
 
   async getPageContent(pageId: string): Promise<{ value: string; representation: 'storage' }> {
-    const response = await this.client.get(`/pages/${pageId}/body`, {
+    const response = await this.client.get(`/content/${pageId}`, {
       params: {
-        body_format: 'storage'
+        expand: 'body.storage'
       }
     });
     return response.data;

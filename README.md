@@ -10,6 +10,7 @@ A Model Context Protocol (MCP) server that provides tools for interacting with C
 - Page Operations
   - Create, read, update pages
   - List pages in a space
+  - Convert page content from Confluence storage format to Markdown
 - Search & Labels
   - Search content using CQL
   - Manage page labels
@@ -62,9 +63,18 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 
 ### Page Tools
 - `list_pages`: List pages in a space
-- `get_page`: Get a specific page with its content
+- `get_page`: Get a specific page with its content (now includes Markdown conversion)
 - `create_page`: Create a new page in a space
 - `update_page`: Update an existing page
+
+The `get_page` tool now automatically converts Confluence storage format content to Markdown, making it easier to work with page content. The conversion handles:
+- Headers (h1-h6)
+- Lists (ordered and unordered)
+- Links
+- Emphasis (bold/italic)
+- Code blocks
+- Tables
+- Paragraphs and line breaks
 
 ### Search & Label Tools
 - `search_content`: Search Confluence content using CQL
@@ -80,6 +90,7 @@ This project is written in TypeScript and follows the MCP SDK conventions for im
 - `src/handlers/` - MCP tool request handlers
 - `src/schemas/` - JSON schemas for tool inputs
 - `src/types/` - TypeScript type definitions
+- `src/utils/` - Utility functions including content format conversion
 
 ## License
 
