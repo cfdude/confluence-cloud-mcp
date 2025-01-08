@@ -3,7 +3,7 @@ import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { Page, PaginatedResponse } from "../types/index.js";
 import { convertStorageToMarkdown } from "../utils/content-converter.js";
 
-export async function handleListPages(
+export async function handleListConfluencePages(
   client: ConfluenceClient,
   args: { spaceId: string; limit?: number; start?: number }
 ): Promise<{
@@ -14,7 +14,7 @@ export async function handleListPages(
       throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
     }
 
-    const pages = await client.getPages(args.spaceId, args.limit, args.start);
+    const pages = await client.getConfluencePages(args.spaceId, args.limit, args.start);
     const simplified = {
       results: pages.results.map(page => ({
         id: page.id,
@@ -42,7 +42,7 @@ export async function handleListPages(
   }
 }
 
-export async function handleGetPage(
+export async function handleGetConfluencePage(
   client: ConfluenceClient,
   args: { pageId: string }
 ): Promise<{
@@ -53,7 +53,7 @@ export async function handleGetPage(
       throw new McpError(ErrorCode.InvalidParams, "pageId is required");
     }
 
-    const page = await client.getPage(args.pageId);
+    const page = await client.getConfluencePage(args.pageId);
     
     // Convert the content to markdown if it exists
     const markdownContent = page.body?.storage?.value 
@@ -97,7 +97,7 @@ export async function handleGetPage(
   }
 }
 
-export async function handleCreatePage(
+export async function handleCreateConfluencePage(
   client: ConfluenceClient,
   args: { spaceId: string; title: string; content: string; parentId?: string }
 ): Promise<{
@@ -111,7 +111,7 @@ export async function handleCreatePage(
       );
     }
 
-    const page = await client.createPage(
+    const page = await client.createConfluencePage(
       args.spaceId,
       args.title,
       args.content,
@@ -144,7 +144,7 @@ export async function handleCreatePage(
   }
 }
 
-export async function handleUpdatePage(
+export async function handleUpdateConfluencePage(
   client: ConfluenceClient,
   args: { pageId: string; title: string; content: string; version: number }
 ): Promise<{
@@ -158,7 +158,7 @@ export async function handleUpdatePage(
       );
     }
 
-    const page = await client.updatePage(
+    const page = await client.updateConfluencePage(
       args.pageId,
       args.title,
       args.content,

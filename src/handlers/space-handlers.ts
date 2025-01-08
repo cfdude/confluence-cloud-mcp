@@ -2,14 +2,14 @@ import { ConfluenceClient } from "../client/confluence-client.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { Space, PaginatedResponse } from "../types/index.js";
 
-export async function handleListSpaces(
+export async function handleListConfluenceSpaces(
   client: ConfluenceClient,
   args: { limit?: number; start?: number }
 ): Promise<{
   content: Array<{ type: "text"; text: string }>;
 }> {
   try {
-    const spaces = await client.getSpaces(args.limit, args.start);
+    const spaces = await client.getConfluenceSpaces(args.limit, args.start);
     // Transform to minimal format
     const simplified = {
       results: spaces.results.map(space => ({
@@ -37,7 +37,7 @@ export async function handleListSpaces(
   }
 }
 
-export async function handleGetSpace(
+export async function handleGetConfluenceSpace(
   client: ConfluenceClient,
   args: { spaceId: string }
 ): Promise<{
@@ -48,7 +48,7 @@ export async function handleGetSpace(
       throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
     }
 
-    const space = await client.getSpace(args.spaceId);
+    const space = await client.getConfluenceSpace(args.spaceId);
     // Transform to minimal format
     const simplified = {
       id: space.id,

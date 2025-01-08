@@ -8,7 +8,7 @@ export class ConfluenceClient {
   constructor(config: ConfluenceConfig) {
     this.domain = config.domain;
     this.client = axios.create({
-      baseURL: `https://${config.domain}/wiki/rest/api`,
+      baseURL: `https://${config.domain}/wiki/api/v2`,
       auth: {
         username: config.email,
         password: config.apiToken
@@ -21,20 +21,20 @@ export class ConfluenceClient {
   }
 
   // Space operations
-  async getSpaces(limit = 25, start = 0): Promise<PaginatedResponse<Space>> {
+  async getConfluenceSpaces(limit = 25, start = 0): Promise<PaginatedResponse<Space>> {
     const response = await this.client.get('/spaces', {
       params: { limit, start }
     });
     return response.data;
   }
 
-  async getSpace(spaceId: string): Promise<Space> {
+  async getConfluenceSpace(spaceId: string): Promise<Space> {
     const response = await this.client.get(`/spaces/${spaceId}`);
     return response.data;
   }
 
   // Page operations
-  async getPages(spaceId: string, limit = 25, start = 0, title?: string): Promise<PaginatedResponse<Page>> {
+  async getConfluencePages(spaceId: string, limit = 25, start = 0, title?: string): Promise<PaginatedResponse<Page>> {
     const response = await this.client.get('/pages', {
       params: {
         spaceId,
@@ -47,7 +47,7 @@ export class ConfluenceClient {
     return response.data;
   }
 
-  async getPage(pageId: string): Promise<Page> {
+  async getConfluencePage(pageId: string): Promise<Page> {
     const response = await this.client.get(`/content/${pageId}`, {
       params: {
         expand: 'body.storage,version'
@@ -56,7 +56,7 @@ export class ConfluenceClient {
     return response.data;
   }
 
-  async getPageContent(pageId: string): Promise<{ value: string; representation: 'storage' }> {
+  async getConfluencePageContent(pageId: string): Promise<{ value: string; representation: 'storage' }> {
     const response = await this.client.get(`/content/${pageId}`, {
       params: {
         expand: 'body.storage'
@@ -65,7 +65,7 @@ export class ConfluenceClient {
     return response.data;
   }
 
-  async createPage(spaceId: string, title: string, content: string, parentId?: string): Promise<Page> {
+  async createConfluencePage(spaceId: string, title: string, content: string, parentId?: string): Promise<Page> {
     const body = {
       spaceId,
       status: 'current',
@@ -81,7 +81,7 @@ export class ConfluenceClient {
     return response.data;
   }
 
-  async updatePage(pageId: string, title: string, content: string, version: number): Promise<Page> {
+  async updateConfluencePage(pageId: string, title: string, content: string, version: number): Promise<Page> {
     const body = {
       id: pageId,
       status: 'current',
@@ -101,7 +101,7 @@ export class ConfluenceClient {
   }
 
   // Search operations
-  async searchContent(query: string, limit = 25, start = 0): Promise<SearchResult> {
+  async searchConfluenceContent(query: string, limit = 25, start = 0): Promise<SearchResult> {
     const response = await this.client.get('/pages', {
       params: {
         title: query,
@@ -128,19 +128,19 @@ export class ConfluenceClient {
   }
 
   // Labels operations
-  async getLabels(pageId: string): Promise<PaginatedResponse<Label>> {
+  async getConfluenceLabels(pageId: string): Promise<PaginatedResponse<Label>> {
     const response = await this.client.get(`/pages/${pageId}/labels`);
     return response.data;
   }
 
-  async addLabel(pageId: string, label: string): Promise<Label> {
+  async addConfluenceLabel(pageId: string, label: string): Promise<Label> {
     const response = await this.client.post(`/pages/${pageId}/labels`, {
       name: label
     });
     return response.data;
   }
 
-  async removeLabel(pageId: string, label: string): Promise<void> {
+  async removeConfluenceLabel(pageId: string, label: string): Promise<void> {
     await this.client.delete(`/pages/${pageId}/labels/${label}`);
   }
 }

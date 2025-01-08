@@ -2,7 +2,7 @@ import { ConfluenceClient } from "../client/confluence-client.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { Label, SearchResult } from "../types/index.js";
 
-export async function handleSearchContent(
+export async function handleSearchConfluenceContent(
   client: ConfluenceClient,
   args: { query: string; limit?: number; start?: number }
 ): Promise<{
@@ -13,7 +13,7 @@ export async function handleSearchContent(
       throw new McpError(ErrorCode.InvalidParams, "query is required");
     }
 
-    const results = await client.searchContent(args.query, args.limit, args.start);
+    const results = await client.searchConfluenceContent(args.query, args.limit, args.start);
     const simplified = {
       results: results.results.map(result => ({
         id: result.content.id,
@@ -41,7 +41,7 @@ export async function handleSearchContent(
   }
 }
 
-export async function handleGetLabels(
+export async function handleGetConfluenceLabels(
   client: ConfluenceClient,
   args: { pageId: string }
 ): Promise<{
@@ -52,7 +52,7 @@ export async function handleGetLabels(
       throw new McpError(ErrorCode.InvalidParams, "pageId is required");
     }
 
-    const labels = await client.getLabels(args.pageId);
+    const labels = await client.getConfluenceLabels(args.pageId);
     const simplified = {
       labels: labels.results.map((label: Label) => ({
         id: label.id,
@@ -77,7 +77,7 @@ export async function handleGetLabels(
   }
 }
 
-export async function handleAddLabel(
+export async function handleAddConfluenceLabel(
   client: ConfluenceClient,
   args: { pageId: string; label: string }
 ): Promise<{
@@ -91,7 +91,7 @@ export async function handleAddLabel(
       );
     }
 
-    const label = await client.addLabel(args.pageId, args.label);
+    const label = await client.addConfluenceLabel(args.pageId, args.label);
     const simplified = {
       success: true,
       id: label.id,
@@ -114,7 +114,7 @@ export async function handleAddLabel(
   }
 }
 
-export async function handleRemoveLabel(
+export async function handleRemoveConfluenceLabel(
   client: ConfluenceClient,
   args: { pageId: string; label: string }
 ): Promise<{
@@ -128,7 +128,7 @@ export async function handleRemoveLabel(
       );
     }
 
-    await client.removeLabel(args.pageId, args.label);
+    await client.removeConfluenceLabel(args.pageId, args.label);
     return {
       content: [
         {

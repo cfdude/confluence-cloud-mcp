@@ -1,5 +1,5 @@
 export const toolSchemas = {
-  list_spaces: {
+  list_confluence_spaces: {
     description: "List all spaces in Confluence",
     inputSchema: {
       type: "object",
@@ -16,7 +16,7 @@ export const toolSchemas = {
     },
   },
 
-  get_space: {
+  get_confluence_space: {
     description: "Get details about a specific space",
     inputSchema: {
       type: "object",
@@ -30,7 +30,7 @@ export const toolSchemas = {
     },
   },
 
-  list_pages: {
+  list_confluence_pages: {
     description: "List pages in a space",
     inputSchema: {
       type: "object",
@@ -52,7 +52,7 @@ export const toolSchemas = {
     },
   },
 
-  get_page: {
+  get_confluence_page: {
     description: "Get a specific page with its content",
     inputSchema: {
       type: "object",
@@ -66,7 +66,7 @@ export const toolSchemas = {
     },
   },
 
-  create_page: {
+  create_confluence_page: {
     description: "Create a new page in a space",
     inputSchema: {
       type: "object",
@@ -92,7 +92,7 @@ export const toolSchemas = {
     },
   },
 
-  update_page: {
+  update_confluence_page: {
     description: "Update an existing page",
     inputSchema: {
       type: "object",
@@ -118,7 +118,7 @@ export const toolSchemas = {
     },
   },
 
-  search_content: {
+  search_confluence_content: {
     description: "Search Confluence content using CQL",
     inputSchema: {
       type: "object",
@@ -140,7 +140,7 @@ export const toolSchemas = {
     },
   },
 
-  get_labels: {
+  get_confluence_labels: {
     description: "Get labels for a page",
     inputSchema: {
       type: "object",
@@ -154,7 +154,7 @@ export const toolSchemas = {
     },
   },
 
-  add_label: {
+  add_confluence_label: {
     description: "Add a label to a page",
     inputSchema: {
       type: "object",
@@ -172,7 +172,7 @@ export const toolSchemas = {
     },
   },
 
-  remove_label: {
+  remove_confluence_label: {
     description: "Remove a label from a page",
     inputSchema: {
       type: "object",

@@ -1,11 +1,11 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { convertStorageToMarkdown } from "../utils/content-converter.js";
-export async function handleListPages(client, args) {
+export async function handleListConfluencePages(client, args) {
     try {
         if (!args.spaceId) {
             throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
         }
-        const pages = await client.getPages(args.spaceId, args.limit, args.start);
+        const pages = await client.getConfluencePages(args.spaceId, args.limit, args.start);
         const simplified = {
             results: pages.results.map(page => ({
                 id: page.id,
@@ -30,12 +30,12 @@ export async function handleListPages(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to list pages: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleGetPage(client, args) {
+export async function handleGetConfluencePage(client, args) {
     try {
         if (!args.pageId) {
             throw new McpError(ErrorCode.InvalidParams, "pageId is required");
         }
-        const page = await client.getPage(args.pageId);
+        const page = await client.getConfluencePage(args.pageId);
         // Convert the content to markdown if it exists
         const markdownContent = page.body?.storage?.value
             ? convertStorageToMarkdown(page.body.storage.value)
@@ -73,12 +73,12 @@ export async function handleGetPage(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to get page: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleCreatePage(client, args) {
+export async function handleCreateConfluencePage(client, args) {
     try {
         if (!args.spaceId || !args.title || !args.content) {
             throw new McpError(ErrorCode.InvalidParams, "spaceId, title, and content are required");
         }
-        const page = await client.createPage(args.spaceId, args.title, args.content, args.parentId);
+        const page = await client.createConfluencePage(args.spaceId, args.title, args.content, args.parentId);
         const simplified = {
             id: page.id,
             version: page.version.number,
@@ -101,12 +101,12 @@ export async function handleCreatePage(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to create page: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleUpdatePage(client, args) {
+export async function handleUpdateConfluencePage(client, args) {
     try {
         if (!args.pageId || !args.title || !args.content || args.version === undefined) {
             throw new McpError(ErrorCode.InvalidParams, "pageId, title, content, and version are required");
         }
-        const page = await client.updatePage(args.pageId, args.title, args.content, args.version);
+        const page = await client.updateConfluencePage(args.pageId, args.title, args.content, args.version);
         const simplified = {
             id: page.id,
             version: page.version.number,

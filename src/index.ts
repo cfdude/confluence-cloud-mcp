@@ -11,18 +11,18 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { ConfluenceClient } from "./client/confluence-client.js";
-import { handleGetSpace, handleListSpaces } from "./handlers/space-handlers.js";
+import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
 import {
-  handleCreatePage,
-  handleGetPage,
-  handleListPages,
-  handleUpdatePage,
+  handleCreateConfluencePage,
+  handleGetConfluencePage,
+  handleListConfluencePages,
+  handleUpdateConfluencePage,
 } from "./handlers/page-handlers.js";
 import {
-  handleAddLabel,
-  handleGetLabels,
-  handleRemoveLabel,
-  handleSearchContent,
+  handleAddConfluenceLabel,
+  handleGetConfluenceLabels,
+  handleRemoveConfluenceLabel,
+  handleSearchConfluenceContent,
 } from "./handlers/search-label-handlers.js";
 import { toolSchemas } from "./schemas/tool-schemas.js";
 
@@ -143,28 +143,28 @@ class ConfluenceServer {
       try {
         switch (name) {
           // Space operations
-          case "list_spaces": {
+          case "list_confluence_spaces": {
             const { limit, start } = (args || {}) as { limit?: number; start?: number };
-            return await handleListSpaces(this.confluenceClient, { limit, start });
+            return await handleListConfluenceSpaces(this.confluenceClient, { limit, start });
           }
-          case "get_space": {
+          case "get_confluence_space": {
             const { spaceId } = (args || {}) as { spaceId: string };
             if (!spaceId) throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
-            return await handleGetSpace(this.confluenceClient, { spaceId });
+            return await handleGetConfluenceSpace(this.confluenceClient, { spaceId });
           }
 
           // Page operations
-          case "list_pages": {
+          case "list_confluence_pages": {
             const { spaceId, limit, start } = (args || {}) as { spaceId: string; limit?: number; start?: number };
             if (!spaceId) throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
-            return await handleListPages(this.confluenceClient, { spaceId, limit, start });
+            return await handleListConfluencePages(this.confluenceClient, { spaceId, limit, start });
           }
-          case "get_page": {
+          case "get_confluence_page": {
             const { pageId } = (args || {}) as { pageId: string };
             if (!pageId) throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-            return await handleGetPage(this.confluenceClient, { pageId });
+            return await handleGetConfluencePage(this.confluenceClient, { pageId });
           }
-          case "create_page": {
+          case "create_confluence_page": {
             const { spaceId, title, content, parentId } = (args || {}) as { 
               spaceId: string; 
               title: string; 
@@ -174,9 +174,9 @@ class ConfluenceServer {
             if (!spaceId || !title || !content) {
               throw new McpError(ErrorCode.InvalidParams, "spaceId, title, and content are required");
             }
-            return await handleCreatePage(this.confluenceClient, { spaceId, title, content, parentId });
+            return await handleCreateConfluencePage(this.confluenceClient, { spaceId, title, content, parentId });
           }
-          case "update_page": {
+          case "update_confluence_page": {
             const { pageId, title, content, version } = (args || {}) as {
               pageId: string;
               title: string;
@@ -186,35 +186,35 @@ class ConfluenceServer {
             if (!pageId || !title || !content || version === undefined) {
               throw new McpError(ErrorCode.InvalidParams, "pageId, title, content, and version are required");
             }
-            return await handleUpdatePage(this.confluenceClient, { pageId, title, content, version });
+            return await handleUpdateConfluencePage(this.confluenceClient, { pageId, title, content, version });
           }
 
           // Search operation
-          case "search_content": {
+          case "search_confluence_content": {
             const { query, limit, start } = (args || {}) as { 
               query: string; 
               limit?: number; 
               start?: number 
             };
             if (!query) throw new McpError(ErrorCode.InvalidParams, "query is required");
-            return await handleSearchContent(this.confluenceClient, { query, limit, start });
+            return await handleSearchConfluenceContent(this.confluenceClient, { query, limit, start });
           }
 
           // Label operations
-          case "get_labels": {
+          case "get_confluence_labels": {
             const { pageId } = (args || {}) as { pageId: string };
             if (!pageId) throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-            return await handleGetLabels(this.confluenceClient, { pageId });
+            return await handleGetConfluenceLabels(this.confluenceClient, { pageId });
           }
-          case "add_label": {
+          case "add_confluence_label": {
             const { pageId, label } = (args || {}) as { pageId: string; label: string };
             if (!pageId || !label) throw new McpError(ErrorCode.InvalidParams, "pageId and label are required");
-            return await handleAddLabel(this.confluenceClient, { pageId, label });
+            return await handleAddConfluenceLabel(this.confluenceClient, { pageId, label });
           }
-          case "remove_label": {
+          case "remove_confluence_label": {
             const { pageId, label } = (args || {}) as { pageId: string; label: string };
             if (!pageId || !label) throw new McpError(ErrorCode.InvalidParams, "pageId and label are required");
-            return await handleRemoveLabel(this.confluenceClient, { pageId, label });
+            return await handleRemoveConfluenceLabel(this.confluenceClient, { pageId, label });
           }
 
           default:

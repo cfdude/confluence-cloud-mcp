@@ -1,7 +1,7 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-export async function handleListSpaces(client, args) {
+export async function handleListConfluenceSpaces(client, args) {
     try {
-        const spaces = await client.getSpaces(args.limit, args.start);
+        const spaces = await client.getConfluenceSpaces(args.limit, args.start);
         // Transform to minimal format
         const simplified = {
             results: spaces.results.map(space => ({
@@ -26,12 +26,12 @@ export async function handleListSpaces(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to list spaces: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleGetSpace(client, args) {
+export async function handleGetConfluenceSpace(client, args) {
     try {
         if (!args.spaceId) {
             throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
         }
-        const space = await client.getSpace(args.spaceId);
+        const space = await client.getConfluenceSpace(args.spaceId);
         // Transform to minimal format
         const simplified = {
             id: space.id,

@@ -5,7 +5,7 @@ export class ConfluenceClient {
     constructor(config) {
         this.domain = config.domain;
         this.client = axios.create({
-            baseURL: `https://${config.domain}/wiki/rest/api`,
+            baseURL: `https://${config.domain}/wiki/api/v2`,
             auth: {
                 username: config.email,
                 password: config.apiToken
@@ -17,18 +17,18 @@ export class ConfluenceClient {
         });
     }
     // Space operations
-    async getSpaces(limit = 25, start = 0) {
+    async getConfluenceSpaces(limit = 25, start = 0) {
         const response = await this.client.get('/spaces', {
             params: { limit, start }
         });
         return response.data;
     }
-    async getSpace(spaceId) {
+    async getConfluenceSpace(spaceId) {
         const response = await this.client.get(`/spaces/${spaceId}`);
         return response.data;
     }
     // Page operations
-    async getPages(spaceId, limit = 25, start = 0, title) {
+    async getConfluencePages(spaceId, limit = 25, start = 0, title) {
         const response = await this.client.get('/pages', {
             params: {
                 spaceId,
@@ -40,7 +40,7 @@ export class ConfluenceClient {
         });
         return response.data;
     }
-    async getPage(pageId) {
+    async getConfluencePage(pageId) {
         const response = await this.client.get(`/content/${pageId}`, {
             params: {
                 expand: 'body.storage,version'
@@ -48,7 +48,7 @@ export class ConfluenceClient {
         });
         return response.data;
     }
-    async getPageContent(pageId) {
+    async getConfluencePageContent(pageId) {
         const response = await this.client.get(`/content/${pageId}`, {
             params: {
                 expand: 'body.storage'
@@ -56,7 +56,7 @@ export class ConfluenceClient {
         });
         return response.data;
     }
-    async createPage(spaceId, title, content, parentId) {
+    async createConfluencePage(spaceId, title, content, parentId) {
         const body = {
             spaceId,
             status: 'current',
@@ -70,7 +70,7 @@ export class ConfluenceClient {
         const response = await this.client.post('/pages', body);
         return response.data;
     }
-    async updatePage(pageId, title, content, version) {
+    async updateConfluencePage(pageId, title, content, version) {
         const body = {
             id: pageId,
             status: 'current',
@@ -88,7 +88,7 @@ export class ConfluenceClient {
         return response.data;
     }
     // Search operations
-    async searchContent(query, limit = 25, start = 0) {
+    async searchConfluenceContent(query, limit = 25, start = 0) {
         const response = await this.client.get('/pages', {
             params: {
                 title: query,
@@ -114,17 +114,17 @@ export class ConfluenceClient {
         };
     }
     // Labels operations
-    async getLabels(pageId) {
+    async getConfluenceLabels(pageId) {
         const response = await this.client.get(`/pages/${pageId}/labels`);
         return response.data;
     }
-    async addLabel(pageId, label) {
+    async addConfluenceLabel(pageId, label) {
         const response = await this.client.post(`/pages/${pageId}/labels`, {
             name: label
         });
         return response.data;
     }
-    async removeLabel(pageId, label) {
+    async removeConfluenceLabel(pageId, label) {
         await this.client.delete(`/pages/${pageId}/labels/${label}`);
     }
 }

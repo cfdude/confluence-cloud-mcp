@@ -1,10 +1,10 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-export async function handleSearchContent(client, args) {
+export async function handleSearchConfluenceContent(client, args) {
     try {
         if (!args.query) {
             throw new McpError(ErrorCode.InvalidParams, "query is required");
         }
-        const results = await client.searchContent(args.query, args.limit, args.start);
+        const results = await client.searchConfluenceContent(args.query, args.limit, args.start);
         const simplified = {
             results: results.results.map(result => ({
                 id: result.content.id,
@@ -29,12 +29,12 @@ export async function handleSearchContent(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to search content: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleGetLabels(client, args) {
+export async function handleGetConfluenceLabels(client, args) {
     try {
         if (!args.pageId) {
             throw new McpError(ErrorCode.InvalidParams, "pageId is required");
         }
-        const labels = await client.getLabels(args.pageId);
+        const labels = await client.getConfluenceLabels(args.pageId);
         const simplified = {
             labels: labels.results.map((label) => ({
                 id: label.id,
@@ -56,12 +56,12 @@ export async function handleGetLabels(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to get labels: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleAddLabel(client, args) {
+export async function handleAddConfluenceLabel(client, args) {
     try {
         if (!args.pageId || !args.label) {
             throw new McpError(ErrorCode.InvalidParams, "pageId and label are required");
         }
-        const label = await client.addLabel(args.pageId, args.label);
+        const label = await client.addConfluenceLabel(args.pageId, args.label);
         const simplified = {
             success: true,
             id: label.id,
@@ -81,12 +81,12 @@ export async function handleAddLabel(client, args) {
         throw new McpError(ErrorCode.InternalError, `Failed to add label: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-export async function handleRemoveLabel(client, args) {
+export async function handleRemoveConfluenceLabel(client, args) {
     try {
         if (!args.pageId || !args.label) {
             throw new McpError(ErrorCode.InvalidParams, "pageId and label are required");
         }
-        await client.removeLabel(args.pageId, args.label);
+        await client.removeConfluenceLabel(args.pageId, args.label);
         return {
             content: [
                 {
