@@ -42,7 +42,7 @@ class ConfluenceServer {
                 inputSchema,
             };
         });
-        console.error("Initializing server with tools:", JSON.stringify(tools, null, 2));
+        console.error("Initializing server with tools:", tools.map(t => t.name).join(", "));
         this.server = new Server({
             name: "confluence-cloud",
             version: "0.1.0",
@@ -103,7 +103,6 @@ class ConfluenceServer {
         });
         // Set up tool handlers
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-            console.error("Received request:", JSON.stringify(request, null, 2));
             const { name, arguments: args } = request.params;
             console.error(`Handling tool request: ${name}`);
             try {
@@ -183,7 +182,7 @@ class ConfluenceServer {
                 }
             }
             catch (error) {
-                console.error("Error handling request:", error);
+                console.error("Error handling request:", error instanceof Error ? error.message : String(error));
                 if (error instanceof McpError) {
                     throw error;
                 }

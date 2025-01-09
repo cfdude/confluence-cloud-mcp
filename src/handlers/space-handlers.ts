@@ -29,7 +29,7 @@ export async function handleListConfluenceSpaces(
       ],
     };
   } catch (error) {
-    console.error("Error listing spaces:", error);
+    console.error("Error listing spaces:", error instanceof Error ? error.message : String(error));
     throw new McpError(
       ErrorCode.InternalError,
       `Failed to list spaces: ${error instanceof Error ? error.message : String(error)}`
@@ -67,7 +67,7 @@ export async function handleGetConfluenceSpace(
       ],
     };
   } catch (error) {
-    console.error("Error getting space:", error);
+    console.error("Error getting space:", error instanceof Error ? error.message : String(error));
     if (error instanceof McpError) {
       throw error;
     }

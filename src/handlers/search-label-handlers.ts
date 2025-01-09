@@ -33,7 +33,7 @@ export async function handleSearchConfluenceContent(
       ],
     };
   } catch (error) {
-    console.error("Error searching content:", error);
+    console.error("Error searching content:", error instanceof Error ? error.message : String(error));
     throw new McpError(
       ErrorCode.InternalError,
       `Failed to search content: ${error instanceof Error ? error.message : String(error)}`
@@ -69,7 +69,7 @@ export async function handleGetConfluenceLabels(
       ],
     };
   } catch (error) {
-    console.error("Error getting labels:", error);
+    console.error("Error getting labels:", error instanceof Error ? error.message : String(error));
     throw new McpError(
       ErrorCode.InternalError,
       `Failed to get labels: ${error instanceof Error ? error.message : String(error)}`
@@ -106,7 +106,7 @@ export async function handleAddConfluenceLabel(
       ],
     };
   } catch (error) {
-    console.error("Error adding label:", error);
+    console.error("Error adding label:", error instanceof Error ? error.message : String(error));
     throw new McpError(
       ErrorCode.InternalError,
       `Failed to add label: ${error instanceof Error ? error.message : String(error)}`
@@ -138,7 +138,7 @@ export async function handleRemoveConfluenceLabel(
       ],
     };
   } catch (error) {
-    console.error("Error removing label:", error);
+    console.error("Error removing label:", error instanceof Error ? error.message : String(error));
     throw new McpError(
       ErrorCode.InternalError,
       `Failed to remove label: ${error instanceof Error ? error.message : String(error)}`

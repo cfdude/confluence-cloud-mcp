@@ -30,32 +30,25 @@ export class ConfluenceClient {
             }
         });
         // Log configuration for debugging
-        console.log('Confluence client configured:', {
-            baseURL,
-            v1Path,
-            v2Path,
-            email: config.email,
-            hasToken: !!config.apiToken,
-            v2Headers: this.v2Client.defaults.headers,
-            v1Headers: this.v1Client.defaults.headers
-        });
+        console.error('Confluence client configured with domain:', config.domain);
     }
     // Verify the connection to Confluence API
     async verifyConnection() {
         try {
             await this.v2Client.get('/spaces', { params: { limit: 1 } });
-            console.log('Successfully connected to Confluence API');
+            console.error('Successfully connected to Confluence API');
         }
         catch (error) {
             if (axios.isAxiosError(error)) {
-                console.error('Failed to connect to Confluence API:', {
+                // Log only serializable error details
+                const errorDetails = {
                     status: error.response?.status,
                     statusText: error.response?.statusText,
-                    data: error.response?.data,
-                    headers: error.response?.headers
-                });
+                    message: error.message
+                };
+                console.error('Failed to connect to Confluence API:', errorDetails);
             }
-            throw error;
+            throw new Error('Failed to connect to Confluence API');
         }
     }
     // Space operations
@@ -97,7 +90,7 @@ export class ConfluenceClient {
         }
         catch (error) {
             if (axios.isAxiosError(error)) {
-                console.error('Error searching for page:', error.response?.data || error.message);
+                console.error('Error searching for page:', error.message);
                 throw new ConfluenceError(`Failed to search for page: ${error.message}`, 'UNKNOWN');
             }
             throw error;
@@ -105,7 +98,7 @@ export class ConfluenceClient {
     }
     async getPageContent(pageId) {
         try {
-            console.log(`Fetching content for page ${pageId} using v1 API`);
+            console.error(`Fetching content for page ${pageId} using v1 API`);
             // Use v1 API to get content, which reliably returns body content
             const response = await this.v1Client.get(`/content/${pageId}`, {
                 params: {
@@ -159,10 +152,10 @@ export class ConfluenceClient {
         }
         catch (error) {
             if (axios.isAxiosError(error)) {
-                console.error('Error fetching page:', error.response?.data || error.message);
+                console.error('Error fetching page:', error.message);
                 throw error;
             }
-            console.error('Error fetching page:', error);
+            console.error('Error fetching page:', error instanceof Error ? error.message : 'Unknown error');
             throw new Error('Failed to fetch page content');
         }
     }

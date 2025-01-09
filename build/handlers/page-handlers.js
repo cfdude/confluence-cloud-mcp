@@ -40,7 +40,7 @@ export async function handleListConfluencePages(client, args) {
         };
     }
     catch (error) {
-        console.error("Error listing pages:", error);
+        console.error("Error listing pages:", error instanceof Error ? error.message : String(error));
         throw new McpError(ErrorCode.InternalError, `Failed to list pages: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -82,7 +82,7 @@ export async function handleGetConfluencePageById(client, args) {
         }
     }
     catch (error) {
-        console.error("Error getting page:", error);
+        console.error("Error getting page:", error instanceof Error ? error.message : String(error));
         if (error instanceof McpError) {
             throw error;
         }
@@ -125,7 +125,7 @@ export async function handleGetConfluencePageByName(client, args) {
         };
     }
     catch (error) {
-        console.error("Error getting page by name:", error);
+        console.error("Error getting page by name:", error instanceof Error ? error.message : String(error));
         if (error instanceof McpError) {
             throw error;
         }
@@ -153,7 +153,7 @@ export async function handleCreateConfluencePage(client, args) {
         };
     }
     catch (error) {
-        console.error("Error creating page:", error);
+        console.error("Error creating page:", error instanceof Error ? error.message : String(error));
         if (error instanceof McpError) {
             throw error;
         }
@@ -181,7 +181,7 @@ export async function handleUpdateConfluencePage(client, args) {
         };
     }
     catch (error) {
-        console.error("Error updating page:", error);
+        console.error("Error updating page:", error instanceof Error ? error.message : String(error));
         if (error instanceof McpError) {
             throw error;
         }
