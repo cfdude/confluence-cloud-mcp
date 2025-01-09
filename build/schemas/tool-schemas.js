@@ -1,6 +1,6 @@
 export const toolSchemas = {
     list_confluence_spaces: {
-        description: "List all spaces in Confluence",
+        description: "List all available Confluence spaces. Use this to discover space IDs that you can use with other tools.",
         inputSchema: {
             type: "object",
             properties: {
@@ -29,7 +29,7 @@ export const toolSchemas = {
         },
     },
     list_confluence_pages: {
-        description: "List pages in a space",
+        description: "List all pages in a Confluence space. Returns page IDs, titles, and metadata that you can use with get_confluence_page_by_id.",
         inputSchema: {
             type: "object",
             properties: {
@@ -50,7 +50,7 @@ export const toolSchemas = {
         },
     },
     get_confluence_page_by_id: {
-        description: "Get a specific Confluence page by its ID, returning the content in markdown format",
+        description: "Get a specific Confluence page by its ID. Returns the page content in markdown format, along with metadata. This is the most direct way to get a specific page when you know its ID.",
         inputSchema: {
             type: "object",
             properties: {
@@ -63,7 +63,7 @@ export const toolSchemas = {
         },
     },
     get_confluence_page_by_name: {
-        description: "Search for and retrieve a Confluence page by its title, returning the content in markdown format",
+        description: "Find and retrieve a Confluence page by its title. Returns the page content in markdown format, along with metadata. Optionally specify a spaceId to narrow the search. If multiple pages match the title, returns a list of matches to choose from.",
         inputSchema: {
             type: "object",
             properties: {
@@ -130,13 +130,13 @@ export const toolSchemas = {
         },
     },
     search_confluence_content: {
-        description: "Search Confluence content using CQL",
+        description: "Search across all Confluence content using a query string. Use this to find pages when you don't know the exact title. Returns a list of matching pages that you can then get with get_confluence_page_by_id.",
         inputSchema: {
             type: "object",
             properties: {
                 query: {
                     type: "string",
-                    description: "CQL query string",
+                    description: "Text to search for in page titles and content",
                 },
                 limit: {
                     type: "number",
