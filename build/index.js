@@ -4,7 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ErrorCode, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ListToolsRequestSchema, McpError, ReadResourceRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 import { ConfluenceClient } from "./client/confluence-client.js";
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
-import { handleCreateConfluencePage, handleGetConfluencePage, handleListConfluencePages, handleUpdateConfluencePage, } from "./handlers/page-handlers.js";
+import { handleCreateConfluencePage, handleGetConfluencePageById, handleGetConfluencePageByName, handleListConfluencePages, handleUpdateConfluencePage, } from "./handlers/page-handlers.js";
 import { handleAddConfluenceLabel, handleGetConfluenceLabels, handleRemoveConfluenceLabel, handleSearchConfluenceContent, } from "./handlers/search-label-handlers.js";
 import { toolSchemas } from "./schemas/tool-schemas.js";
 // Required environment variables
@@ -22,7 +22,7 @@ for (const envVar of requiredEnvVars) {
 class ConfluenceServer {
     server;
     confluenceClient;
-    constructor() {
+    async initialize() {
         console.error("Loading tool schemas...");
         console.error("Available schemas:", Object.keys(toolSchemas));
         // Convert tool schemas to the format expected by the MCP SDK
@@ -61,11 +61,20 @@ class ConfluenceServer {
             email: process.env.CONFLUENCE_EMAIL,
             apiToken: process.env.CONFLUENCE_API_TOKEN,
         });
+        // Verify connection to Confluence API
+        await this.confluenceClient.verifyConnection();
         this.setupHandlers();
         this.server.onerror = (error) => console.error("[MCP Error]", error);
         process.on("SIGINT", async () => {
             await this.server.close();
             process.exit(0);
+        });
+    }
+    constructor() {
+        // Initialize asynchronously
+        this.initialize().catch(error => {
+            console.error("Failed to initialize server:", error);
+            process.exit(1);
         });
     }
     setupHandlers() {
@@ -117,11 +126,17 @@ class ConfluenceServer {
                             throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
                         return await handleListConfluencePages(this.confluenceClient, { spaceId, limit, start });
                     }
-                    case "get_confluence_page": {
+                    case "get_confluence_page_by_id": {
                         const { pageId } = (args || {});
                         if (!pageId)
                             throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-                        return await handleGetConfluencePage(this.confluenceClient, { pageId });
+                        return await handleGetConfluencePageById(this.confluenceClient, { pageId });
+                    }
+                    case "get_confluence_page_by_name": {
+                        const { title, spaceId } = (args || {});
+                        if (!title)
+                            throw new McpError(ErrorCode.InvalidParams, "title is required");
+                        return await handleGetConfluencePageByName(this.confluenceClient, { title, spaceId });
                     }
                     case "create_confluence_page": {
                         const { spaceId, title, content, parentId } = (args || {});

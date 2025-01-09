@@ -14,7 +14,8 @@ import { ConfluenceClient } from "./client/confluence-client.js";
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
 import {
   handleCreateConfluencePage,
-  handleGetConfluencePage,
+  handleGetConfluencePageById,
+  handleGetConfluencePageByName,
   handleListConfluencePages,
   handleUpdateConfluencePage,
 } from "./handlers/page-handlers.js";
@@ -41,10 +42,10 @@ for (const envVar of requiredEnvVars) {
 }
 
 class ConfluenceServer {
-  private server: Server;
-  private confluenceClient: ConfluenceClient;
+  private server!: Server;
+  private confluenceClient!: ConfluenceClient;
 
-  constructor() {
+  private async initialize() {
     console.error("Loading tool schemas...");
     console.error("Available schemas:", Object.keys(toolSchemas));
 
@@ -93,12 +94,23 @@ class ConfluenceServer {
       apiToken: process.env.CONFLUENCE_API_TOKEN!,
     });
 
+    // Verify connection to Confluence API
+    await this.confluenceClient.verifyConnection();
+
     this.setupHandlers();
 
     this.server.onerror = (error) => console.error("[MCP Error]", error);
     process.on("SIGINT", async () => {
       await this.server.close();
       process.exit(0);
+    });
+  }
+
+  constructor() {
+    // Initialize asynchronously
+    this.initialize().catch(error => {
+      console.error("Failed to initialize server:", error);
+      process.exit(1);
     });
   }
 
@@ -159,10 +171,15 @@ class ConfluenceServer {
             if (!spaceId) throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
             return await handleListConfluencePages(this.confluenceClient, { spaceId, limit, start });
           }
-          case "get_confluence_page": {
+          case "get_confluence_page_by_id": {
             const { pageId } = (args || {}) as { pageId: string };
             if (!pageId) throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-            return await handleGetConfluencePage(this.confluenceClient, { pageId });
+            return await handleGetConfluencePageById(this.confluenceClient, { pageId });
+          }
+          case "get_confluence_page_by_name": {
+            const { title, spaceId } = (args || {}) as { title: string; spaceId?: string };
+            if (!title) throw new McpError(ErrorCode.InvalidParams, "title is required");
+            return await handleGetConfluencePageByName(this.confluenceClient, { title, spaceId });
           }
           case "create_confluence_page": {
             const { spaceId, title, content, parentId } = (args || {}) as { 

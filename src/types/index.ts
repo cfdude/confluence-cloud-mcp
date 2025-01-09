@@ -86,3 +86,25 @@ export interface PaginatedResponse<T> {
     base: string;
   };
 }
+
+export interface SimplifiedPage {
+  title: string;
+  content: string; // markdown
+  metadata: {
+    id: string;
+    spaceId: string;
+    version: number;
+    lastModified: string;
+    url: string;
+  };
+}
+
+export class ConfluenceError extends Error {
+  constructor(
+    message: string,
+    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN'
+  ) {
+    super(message);
+    this.name = 'ConfluenceError';
+  }
+}

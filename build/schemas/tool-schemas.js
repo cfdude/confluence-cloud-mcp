@@ -49,8 +49,8 @@ export const toolSchemas = {
             required: ["spaceId"],
         },
     },
-    get_confluence_page: {
-        description: "Get a specific page with its content",
+    get_confluence_page_by_id: {
+        description: "Get a specific Confluence page by its ID, returning the content in markdown format",
         inputSchema: {
             type: "object",
             properties: {
@@ -60,6 +60,23 @@ export const toolSchemas = {
                 },
             },
             required: ["pageId"],
+        },
+    },
+    get_confluence_page_by_name: {
+        description: "Search for and retrieve a Confluence page by its title, returning the content in markdown format",
+        inputSchema: {
+            type: "object",
+            properties: {
+                title: {
+                    type: "string",
+                    description: "Title of the page to find",
+                },
+                spaceId: {
+                    type: "string",
+                    description: "Optional space ID to limit the search scope",
+                },
+            },
+            required: ["title"],
         },
     },
     create_confluence_page: {

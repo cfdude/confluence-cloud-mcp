@@ -1,11 +1,49 @@
 export function convertStorageToMarkdown(storageFormat: string): string {
   try {
-    // Basic HTML-like to Markdown conversion
+    // First handle Confluence-specific elements
     let markdown = storageFormat
       // Remove XML declaration and DOCTYPE
       .replace(/<\?xml.*?\?>/, '')
       .replace(/<!DOCTYPE.*?>/, '')
-      
+
+      // Handle Confluence layouts
+      .replace(/<ac:layout[^>]*>[\s\S]*?<\/ac:layout>/g, (match) => {
+        return match
+          // Extract content from layout cells
+          .replace(/<ac:layout-cell[^>]*>([\s\S]*?)<\/ac:layout-cell>/g, '$1\n\n')
+          // Remove layout tags
+          .replace(/<\/?ac:layout[^>]*>/g, '')
+          .replace(/<\/?ac:layout-section[^>]*>/g, '');
+      })
+
+      // Handle Confluence macros
+      .replace(/<ac:structured-macro[^>]*?ac:name="([^"]*)"[^>]*>([\s\S]*?)<\/ac:structured-macro>/g, 
+        (match, macroName, content) => {
+          // Extract macro parameters
+          const params: string[] = content.match(/<ac:parameter[^>]*?ac:name="([^"]*)"[^>]*>([\s\S]*?)<\/ac:parameter>/g) || [];
+          const paramStr = params.map((param: string) => {
+            const nameMatch = param.match(/ac:name="([^"]*)"/);
+            const valueMatch = param.match(/<ac:parameter[^>]*>([\s\S]*?)<\/ac:parameter>/);
+            return nameMatch && valueMatch ? `${nameMatch[1]}: ${valueMatch[1]}` : '';
+          }).filter(Boolean).join(', ');
+          
+          return `[Confluence Macro: ${macroName}${paramStr ? ` (${paramStr})` : ''}]\n\n`;
+      })
+
+      // Handle Confluence placeholders
+      .replace(/<ac:placeholder[^>]*>([\s\S]*?)<\/ac:placeholder>/g, '_$1_')
+
+      // Handle Confluence rich text
+      .replace(/<ac:rich-text-body[^>]*>([\s\S]*?)<\/ac:rich-text-body>/g, '$1')
+
+      // Remove any remaining Confluence-specific tags
+      .replace(/<\/?ac:[^>]*>/g, '')
+
+      // Handle styled spans
+      .replace(/<span[^>]*style="color:[^"]*"[^>]*>([\s\S]*?)<\/span>/g, '$1')
+      .replace(/<span[^>]*>([\s\S]*?)<\/span>/g, '$1')
+
+      // Basic HTML-like to Markdown conversion
       // Headers
       .replace(/<h1[^>]*>(.*?)<\/h1>/g, '# $1\n')
       .replace(/<h2[^>]*>(.*?)<\/h2>/g, '## $1\n')
@@ -48,7 +86,14 @@ export function convertStorageToMarkdown(storageFormat: string): string {
       })
       
       // Clean up
-      .replace(/\n{3,}/g, '\n\n')  // Remove extra newlines
+      .replace(/\n{3,}/g, '\n\n')      // Remove extra newlines
+      .replace(/&quot;/g, '"')         // Convert HTML entities
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/\n\s+\n/g, '\n\n')     // Remove lines with only whitespace
+      .replace(/([^\n])\n([^\n])/g, '$1 $2')  // Join lines unless there's a blank line
+      .replace(/<[^>]+>/g, '')         // Remove any remaining HTML tags
       .trim();
     
     return markdown;
