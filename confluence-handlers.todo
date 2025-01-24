@@ -1,41 +1,45 @@
 Confluence MCP Handler Improvements
 =================================
 
-Schema Updates:
-☐ Split get_confluence_page into two distinct tools:
-  ☐ get_confluence_page_by_id
-    - Input: pageId (string)
-    - Returns: Simplified page content in markdown
-  ☐ get_confluence_page_by_name
-    - Input: title (string), spaceId (optional string)
-    - Returns: Same format as by_id for consistency
+Label Operations:
+☐ Improve error handling:
+  - Add specific HTTP status code handling in ConfluenceClient
+  - Map API errors to meaningful MCP errors
+  - Add permission checking before operations
+  - Enhance error messages for better AI understanding
+☐ Update label handlers:
+  - Add proper error mapping
+  - Improve response format
+  - Add validation checks
 
-Client Layer Updates:
-☐ Enhance ConfluenceClient class:
-  ☐ Improve getConfluencePage method:
-    - Better error handling for 404s
-    - Proper content retrieval
-    - Clear logging for debugging
-  ☐ Add searchPageByName method:
-    - Search by title
-    - Handle multiple results
-    - Optional space filtering
-  ☐ Add proper TypeScript types for all responses
+Search Results:
+☐ Expand space information:
+  - Include space key and name
+  - Add space type (personal/team)
+  - Include space URL
+  - Update response mapping
+☐ Enhance response structure:
+  - Add more context to results
+  - Improve excerpt formatting
+  - Include relevant metadata
 
-Handler Layer Updates:
-☐ Create new handlers:
-  ☐ handleGetConfluencePageById:
-    - Validate pageId
-    - Get page content
-    - Convert to markdown
-    - Return simplified structure
-  ☐ handleGetConfluencePageByName:
-    - Search for page by title
-    - Handle no results/multiple results
-    - Get content for found page
-    - Return same structure as byId
+Page Listing:
+☐ Add extended metadata:
+  - Creation date
+  - Last modified date
+  - Author information
+  - Web UI URL
+  - Space key (alongside spaceId)
+☐ Implement pagination improvements:
+  - Add total count
+  - Include page number
+  - Better next/previous handling
+☐ Add optional expand parameter:
+  - Allow requesting additional metadata
+  - Support selective field expansion
+  - Optimize response size
 
-Error Handling Improvements:
+Error Handling:
 ☐ Add specific error types:
   - PageNotFound
   - MultipleMatchesFound
@@ -44,20 +48,6 @@ Error Handling Improvements:
 ☐ Improve error messages to be AI-friendly
 ☐ Add debug logging throughout
 
-Response Format Standardization:
-☐ Define consistent response structure:
-  {
-    title: string
-    content: string (markdown)
-    metadata: {
-      id: string
-      spaceId: string
-      version: number
-      lastModified: string
-      url: string
-    }
-  }
-
 Testing:
 ☐ Test with various scenarios:
   - Existing pages
@@ -65,8 +55,13 @@ Testing:
   - Pages with/without content
   - Multiple pages with same name
   - Different content formats
+  - Label operations
+  - Search functionality
+  - Pagination handling
 
 Documentation:
 ☐ Update tool schemas with clear descriptions
 ☐ Add examples for common use cases
 ☐ Document error scenarios and how to handle them
+☐ Add inline code documentation
+☐ Create usage examples for each tool
