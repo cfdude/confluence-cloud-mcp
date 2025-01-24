@@ -102,7 +102,7 @@ export interface SimplifiedPage {
 export class ConfluenceError extends Error {
   constructor(
     message: string,
-    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN'
+    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN' | 'SEARCH_FAILED'
   ) {
     super(message);
     this.name = 'ConfluenceError';

@@ -130,13 +130,13 @@ export const toolSchemas = {
         },
     },
     search_confluence_content: {
-        description: "Search across all Confluence content using a query string. Use this to find pages when you don't know the exact title. Returns a list of matching pages that you can then get with get_confluence_page_by_id.",
+        description: "Search across Confluence content using CQL (Confluence Query Language) or free text.\n\nSearch Capabilities:\n- Full text search across all content\n- Space-specific searches\n- Content type filtering\n- Metadata-based filtering\n\nCQL Query Examples:\n1. Simple text search:\n   - text ~ \"search term\"\n   - title ~ \"meeting notes\"\n\n2. Space-specific search:\n   - space.key = \"TEAM\" AND text ~ \"project\"\n   - space.title ~ \"Engineering\" AND text ~ \"deployment\"\n\n3. Combined searches:\n   - text ~ \"security\" AND creator.name = \"jsmith\"\n   - text ~ \"budget\" AND created >= \"2023-01-01\"\n\n4. Content type filtering:\n   - type = \"page\" AND text ~ \"documentation\"\n   - type in (\"page\", \"blogpost\") AND text ~ \"announcement\"\n\nCommon CQL Operators:\n- ~ : contains (text search)\n- = : equals\n- != : not equals\n- AND, OR : combine conditions\n- () : group conditions\n- >= <= : date comparisons\n- IN : multiple values\n\nResponse includes:\n- Page ID, title, and type\n- Space information\n- URL to the page\n- Last modified date\n- Content excerpt with search term highlighting\n\nPagination:\n- Use 'limit' to control results per page (default: 25)\n- Use 'start' for pagination offset\n\nBest Practices:\n1. Start with simple queries and refine as needed\n2. Use space-specific searches for better performance\n3. Combine multiple conditions for precise results\n4. Use get_confluence_page_by_id to fetch full content of found pages",
         inputSchema: {
             type: "object",
             properties: {
                 query: {
                     type: "string",
-                    description: "Text to search for in page titles and content",
+                    description: "Search query in CQL format or free text. For CQL, use operators like 'AND', 'OR', '~' (contains). To search in specific space use 'space.key = KEY'",
                 },
                 limit: {
                     type: "number",

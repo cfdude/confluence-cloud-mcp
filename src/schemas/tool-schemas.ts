@@ -137,13 +137,13 @@ export const toolSchemas = {
   },
 
   search_confluence_content: {
-    description: "Search across all Confluence content using a query string. Use this to find pages when you don't know the exact title. Returns a list of matching pages that you can then get with get_confluence_page_by_id.",
+    description: "Search across Confluence content using simple text or CQL (Confluence Query Language).\n\nQuery Types:\n\n1. Simple Text Search:\n   - Just provide the search term directly (e.g., \"documentation\")\n   - The system automatically wraps it in proper CQL syntax\n\n2. Advanced CQL Search:\n   - Must include \"type =\" to signal raw CQL usage\n   - Examples:\n     * type = \"page\" AND text ~ \"project\"\n     * type = \"page\" AND space.key = \"TEAM\"\n     * type in (\"page\", \"blogpost\") AND created >= \"2024-01-01\"\n\nSearch Capabilities:\n- Full text search across all content\n- Space-specific searches\n- Content type filtering\n- Metadata-based filtering\n\nCQL Operators (for advanced queries):\n- ~ : contains\n- = : equals\n- != : not equals\n- AND, OR : combine conditions\n- () : group conditions\n- >= <= : date comparisons\n- IN : multiple values\n\nResponse includes:\n- Page ID, title, and type\n- Space information\n- URL to the page\n- Last modified date\n- Content excerpt with search term highlighting\n\nPagination:\n- Use 'limit' to control results per page (default: 25)\n- Use 'start' for pagination offset\n\nBest Practices:\n1. Start with simple text searches when possible\n2. Use advanced CQL (with 'type =') for complex queries\n3. Use space-specific searches for better performance\n4. Use get_confluence_page_by_id to fetch full content of found pages",
     inputSchema: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "Text to search for in page titles and content",
+          description: "Search query - either simple text (e.g., 'documentation') or CQL query (must include 'type =' for CQL mode, e.g., 'type = \"page\" AND text ~ \"project\"')",
         },
         limit: {
           type: "number",

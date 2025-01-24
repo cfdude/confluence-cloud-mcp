@@ -14,16 +14,18 @@ export class ConfluenceClient {
   private v2Client: AxiosInstance;
   private v1Client: AxiosInstance;
   private domain: string;
+  private baseURL: string;
+  private v2Path: string;
 
   constructor(config: ConfluenceConfig) {
     this.domain = config.domain;
-    const baseURL = `https://${config.domain}`;
-    const v2Path = '/wiki/api/v2';
-    const v1Path = '/wiki/rest/api';
+    this.baseURL = `https://${config.domain}/wiki`;
+    this.v2Path = '/api/v2';
+    const v1Path = '/rest/api';
     
     // V2 API client for most operations
     this.v2Client = axios.create({
-      baseURL: baseURL + v2Path,
+      baseURL: this.baseURL + this.v2Path,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -34,7 +36,7 @@ export class ConfluenceClient {
 
     // V1 API client specifically for content
     this.v1Client = axios.create({
-      baseURL: baseURL + v1Path,
+      baseURL: this.baseURL + v1Path,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -237,29 +239,50 @@ export class ConfluenceClient {
 
   // Search operations
   async searchConfluenceContent(query: string, limit = 25, start = 0): Promise<SearchResult> {
-    const response = await this.v2Client.get('/pages', {
-      params: {
-        title: query,
-        limit,
-        start,
-        status: 'current'
+    try {
+      console.error('Searching Confluence with CQL:', query);
+      
+      // Use the v1 search endpoint with CQL
+      const response = await this.v1Client.get('/search', {
+        params: {
+          cql: query.includes('type =') ? query : `text ~ "${query}"`,
+          limit,
+          start,
+          expand: 'content.space,content.version,content.body.view.value'
+        }
+      });
+
+      console.error(`Found ${response.data.results?.length || 0} results`);
+
+      return {
+        results: (response.data.results || []).map((result: any) => ({
+          content: {
+            id: result.content.id,
+            type: result.content.type,
+            status: result.content.status,
+            title: result.content.title,
+            spaceId: result.content.space?.id,
+            _links: result.content._links
+          },
+          url: `https://${this.domain}/wiki${result.content._links?.webui || ''}`,
+          lastModified: result.content.version?.when,
+          excerpt: result.excerpt || ''
+        })),
+        _links: {
+          next: response.data._links?.next,
+          base: this.baseURL + '/rest/api'
+        }
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error searching content:', error.message, error.response?.data);
+        throw new ConfluenceError(
+          `Failed to search content: ${error.message}`,
+          'SEARCH_FAILED'
+        );
       }
-    });
-    return {
-      results: response.data.results.map((page: Page) => ({
-        content: {
-          id: page.id,
-          type: 'page',
-          status: page.status,
-          title: page.title,
-          spaceId: page.spaceId,
-          _links: page._links
-        },
-        url: page._links.webui,
-        lastModified: page.version.createdAt
-      })),
-      _links: response.data._links
-    };
+      throw error;
+    }
   }
 
   // Labels operations
