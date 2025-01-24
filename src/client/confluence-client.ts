@@ -292,13 +292,71 @@ export class ConfluenceClient {
   }
 
   async addConfluenceLabel(pageId: string, label: string): Promise<Label> {
-    const response = await this.v2Client.post(`/pages/${pageId}/labels`, {
-      name: label
-    });
-    return response.data;
+    try {
+      const response = await this.v2Client.post(`/pages/${pageId}/labels`, {
+        name: label
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        switch (error.response?.status) {
+          case 400:
+            throw new ConfluenceError(
+              'Invalid label format or label already exists',
+              'INVALID_LABEL'
+            );
+          case 403:
+            throw new ConfluenceError(
+              'Insufficient permissions to add labels',
+              'PERMISSION_DENIED'
+            );
+          case 404:
+            throw new ConfluenceError(
+              'Page not found',
+              'PAGE_NOT_FOUND'
+            );
+          case 409:
+            throw new ConfluenceError(
+              'Label already exists on this page',
+              'LABEL_EXISTS'
+            );
+          default:
+            console.error('Error adding label:', error.response?.data);
+            throw new ConfluenceError(
+              `Failed to add label: ${error.message}`,
+              'UNKNOWN'
+            );
+        }
+      }
+      throw error;
+    }
   }
 
   async removeConfluenceLabel(pageId: string, label: string): Promise<void> {
-    await this.v2Client.delete(`/pages/${pageId}/labels/${label}`);
+    try {
+      await this.v2Client.delete(`/pages/${pageId}/labels/${label}`);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        switch (error.response?.status) {
+          case 403:
+            throw new ConfluenceError(
+              'Insufficient permissions to remove labels',
+              'PERMISSION_DENIED'
+            );
+          case 404:
+            throw new ConfluenceError(
+              'Page or label not found',
+              'PAGE_NOT_FOUND'
+            );
+          default:
+            console.error('Error removing label:', error.response?.data);
+            throw new ConfluenceError(
+              `Failed to remove label: ${error.message}`,
+              'UNKNOWN'
+            );
+        }
+      }
+      throw error;
+    }
   }
 }

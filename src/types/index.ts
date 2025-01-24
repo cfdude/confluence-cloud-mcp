@@ -54,7 +54,8 @@ export interface Page {
 export interface Label {
   id: string;
   name: string;
-  prefix: string;
+  prefix?: string;
+  createdDate?: string;
 }
 
 export interface SearchResult {
@@ -102,7 +103,7 @@ export interface SimplifiedPage {
 export class ConfluenceError extends Error {
   constructor(
     message: string,
-    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN' | 'SEARCH_FAILED'
+    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN' | 'SEARCH_FAILED' | 'LABEL_EXISTS' | 'INVALID_LABEL' | 'PERMISSION_DENIED'
   ) {
     super(message);
     this.name = 'ConfluenceError';

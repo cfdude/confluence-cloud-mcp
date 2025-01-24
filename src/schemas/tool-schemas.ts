@@ -173,17 +173,17 @@ export const toolSchemas = {
   },
 
   add_confluence_label: {
-    description: "Add a label to a page. Labels help organize content and make it easier to find related pages through search_confluence_content.",
+    description: "Add a label to a page. Labels help organize content and make it easier to find related pages through search_confluence_content.\n\nLabel Format:\n- Must contain only letters, numbers, hyphens, and underscores\n- No spaces or special characters allowed\n\nError Handling:\n- Returns 400 for invalid label format\n- Returns 403 for insufficient permissions\n- Returns 404 if page not found\n- Returns 409 if label already exists on the page\n\nResponse includes:\n- Success status\n- Label details (id, name, prefix, creation date)\n- Operation message",
     inputSchema: {
       type: "object",
       properties: {
         pageId: {
           type: "string",
-          description: "ID of the page",
+          description: "ID of the page to add the label to",
         },
         label: {
           type: "string",
-          description: "Label to add",
+          description: "Label to add (letters, numbers, hyphens, and underscores only)",
         },
       },
       required: ["pageId", "label"],
@@ -191,7 +191,7 @@ export const toolSchemas = {
   },
 
   remove_confluence_label: {
-    description: "Remove a label from a page",
+    description: "Remove a label from a page.\n\nError Handling:\n- Returns 403 for insufficient permissions\n- Returns 404 if page or label not found\n\nResponse includes:\n- Success status\n- Operation details (pageId, label, operation type)\n- Success message",
     inputSchema: {
       type: "object",
       properties: {
