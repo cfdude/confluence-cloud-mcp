@@ -57,7 +57,7 @@ export async function handleListConfluencePages(
   }
 }
 
-export async function handleGetConfluencePageById(
+export async function handleGetConfluencePage(
   client: ConfluenceClient,
   args: { pageId: string }
 ): Promise<{
@@ -116,7 +116,7 @@ export async function handleGetConfluencePageById(
   }
 }
 
-export async function handleGetConfluencePageByName(
+export async function handleFindConfluencePage(
   client: ConfluenceClient,
   args: { title: string; spaceId?: string }
 ): Promise<{
@@ -147,7 +147,7 @@ export async function handleGetConfluencePageByName(
       
       throw new McpError(
         ErrorCode.InvalidParams,
-        `Multiple pages found with title "${args.title}". Please use get_confluence_page_by_id with one of these IDs: ${JSON.stringify(matches)}`
+        `Multiple pages found with title "${args.title}". Please use get_confluence_page with one of these IDs: ${JSON.stringify(matches)}`
       );
     }
 

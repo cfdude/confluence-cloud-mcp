@@ -14,8 +14,8 @@ import { ConfluenceClient } from "./client/confluence-client.js";
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
 import {
   handleCreateConfluencePage,
-  handleGetConfluencePageById,
-  handleGetConfluencePageByName,
+  handleGetConfluencePage,
+  handleFindConfluencePage,
   handleListConfluencePages,
   handleUpdateConfluencePage,
 } from "./handlers/page-handlers.js";
@@ -23,7 +23,7 @@ import {
   handleAddConfluenceLabel,
   handleGetConfluenceLabels,
   handleRemoveConfluenceLabel,
-  handleSearchConfluenceContent,
+  handleSearchConfluencePages,
 } from "./handlers/search-label-handlers.js";
 import { toolSchemas } from "./schemas/tool-schemas.js";
 
@@ -169,15 +169,15 @@ class ConfluenceServer {
             if (!spaceId) throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
             return await handleListConfluencePages(this.confluenceClient, { spaceId, limit, start });
           }
-          case "get_confluence_page_by_id": {
+          case "get_confluence_page": {
             const { pageId } = (args || {}) as { pageId: string };
             if (!pageId) throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-            return await handleGetConfluencePageById(this.confluenceClient, { pageId });
+            return await handleGetConfluencePage(this.confluenceClient, { pageId });
           }
-          case "get_confluence_page_by_name": {
+          case "find_confluence_page": {
             const { title, spaceId } = (args || {}) as { title: string; spaceId?: string };
             if (!title) throw new McpError(ErrorCode.InvalidParams, "title is required");
-            return await handleGetConfluencePageByName(this.confluenceClient, { title, spaceId });
+            return await handleFindConfluencePage(this.confluenceClient, { title, spaceId });
           }
           case "create_confluence_page": {
             const { spaceId, title, content, parentId } = (args || {}) as { 
@@ -205,14 +205,14 @@ class ConfluenceServer {
           }
 
           // Search operation
-          case "search_confluence_content": {
+          case "search_confluence_pages": {
             const { query, limit, start } = (args || {}) as { 
               query: string; 
               limit?: number; 
               start?: number 
             };
             if (!query) throw new McpError(ErrorCode.InvalidParams, "query is required");
-            return await handleSearchConfluenceContent(this.confluenceClient, { query, limit, start });
+            return await handleSearchConfluencePages(this.confluenceClient, { query, limit, start });
           }
 
           // Label operations

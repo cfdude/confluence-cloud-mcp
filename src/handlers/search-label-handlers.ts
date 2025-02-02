@@ -2,7 +2,7 @@ import { ConfluenceClient } from "../client/confluence-client.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { ConfluenceError, type Label, type SearchResult } from "../types/index.js";
 
-export async function handleSearchConfluenceContent(
+export async function handleSearchConfluencePages(
   client: ConfluenceClient,
   args: { query: string; limit?: number; start?: number }
 ): Promise<{
@@ -33,10 +33,10 @@ export async function handleSearchConfluenceContent(
       ],
     };
   } catch (error) {
-    console.error("Error searching content:", error instanceof Error ? error.message : String(error));
+    console.error("Error searching pages:", error instanceof Error ? error.message : String(error));
     throw new McpError(
       ErrorCode.InternalError,
-      `Failed to search content: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to search pages: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }
