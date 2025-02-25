@@ -70,7 +70,7 @@ class ConfluenceServer {
       };
     });
 
-    console.error("Initializing server with tools:", tools.map(t => t.name).join(", "));
+    console.error("Initializing server with tools:", JSON.stringify(tools, null, 2));
 
     this.server = new Server(
       {
@@ -99,8 +99,8 @@ class ConfluenceServer {
       // Verify API connection - will throw an error if verification fails
       await this.confluenceClient.verifyApiConnection();
       
-      // Log success to stdout instead of stderr
-      console.log("Successfully connected to Confluence API");
+      // Log success to stderr instead of stdout to avoid co-mingling with JSON-RPC
+      console.error("Successfully connected to Confluence API");
     } catch (error) {
       console.error("API verification failed:", error);
       throw error;
@@ -156,6 +156,8 @@ class ConfluenceServer {
 
     // Set up tool handlers
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      console.error('Received request:', JSON.stringify(request, null, 2));
+      
       const { name, arguments: args } = request.params;
       console.error(`Handling tool request: ${name}`);
 
