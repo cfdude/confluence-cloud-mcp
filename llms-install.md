@@ -149,17 +149,19 @@ If you encounter Docker-related issues:
 Once installed, the following tools will be available:
 
 ### Space Tools
-- `list_spaces`: List all spaces in Confluence
-- `get_space`: Get details about a specific space
+- `list_confluence_spaces`: List all spaces in Confluence
+- `get_confluence_space`: Get details about a specific space
 
 ### Page Tools
-- `list_pages`: List pages in a space
-- `get_page`: Get a specific page with its content (includes Markdown conversion)
-- `create_page`: Create a new page in a space
-- `update_page`: Update an existing page
+- `list_confluence_pages`: List pages in a space
+- `get_confluence_page`: Get a specific page with its content (includes Markdown conversion)
+- `create_confluence_page`: Create a new page in a space
+- `update_confluence_page`: Update an existing page
 
 ### Search & Label Tools
-- `search_content`: Search Confluence content using CQL
-- `get_labels`: Get labels for a page
-- `add_label`: Add a label to a page
-- `remove_label`: Remove a label from a page
+- `search_confluence_pages`: Search Confluence content using CQL
+- `get_confluence_labels`: Get labels for a page
+- `add_confluence_label`: Add a label to a page
+- `remove_confluence_label`: Remove a label from a page
+
+> **Note**: All tool names follow the [verb]_confluence_[noun] naming convention for consistency and clarity.
