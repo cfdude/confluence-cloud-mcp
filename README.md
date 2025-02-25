@@ -27,7 +27,7 @@ The easiest way to use this server is with the pre-built Docker image:
 docker run --rm -i \
   -e CONFLUENCE_API_TOKEN=your-api-token \
   -e CONFLUENCE_EMAIL=your-email@domain.com \
-  -e CONFLUENCE_HOST=your-domain.atlassian.net \
+  -e CONFLUENCE_DOMAIN=your-domain.atlassian.net \
   ghcr.io/aaronsb/confluence-cloud-mcp:latest
 ```
 
@@ -58,7 +58,7 @@ npm install
 2. Configure environment variables:
 Create a `.env` file with your Confluence credentials:
 ```
-CONFLUENCE_HOST=your-domain.atlassian.net
+CONFLUENCE_DOMAIN=your-domain.atlassian.net
 CONFLUENCE_EMAIL=your-email@domain.com
 CONFLUENCE_API_TOKEN=your-api-token
 ```
@@ -84,7 +84,7 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
       "command": "docker",
       "args": ["run", "--rm", "-i", "ghcr.io/aaronsb/confluence-cloud-mcp:latest"],
       "env": {
-        "CONFLUENCE_HOST": "your-domain.atlassian.net",
+        "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@domain.com",
         "CONFLUENCE_API_TOKEN": "your-api-token"
       },

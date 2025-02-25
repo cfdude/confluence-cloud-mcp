@@ -21,7 +21,7 @@ This guide provides detailed instructions for AI assistants like Cline to instal
       "args": ["run", "--rm", "-i", 
         "ghcr.io/aaronsb/confluence-cloud-mcp:latest"],
       "env": {
-        "CONFLUENCE_HOST": "your-domain.atlassian.net",
+        "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@domain.com",
         "CONFLUENCE_API_TOKEN": "your-api-token"
       },
@@ -53,7 +53,7 @@ cd confluence-cloud-mcp
       "command": "docker",
       "args": ["run", "--rm", "-i", "confluence-cloud-mcp:local"],
       "env": {
-        "CONFLUENCE_HOST": "your-domain.atlassian.net",
+        "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@domain.com",
         "CONFLUENCE_API_TOKEN": "your-api-token"
       },
@@ -86,7 +86,7 @@ npm run build
       "command": "node",
       "args": ["/path/to/confluence-cloud-mcp/build/index.js"],
       "env": {
-        "CONFLUENCE_HOST": "your-domain.atlassian.net",
+        "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@domain.com",
         "CONFLUENCE_API_TOKEN": "your-api-token"
       },
@@ -105,7 +105,7 @@ npm run build
 4. Click "Create" and copy the generated token
 5. Use this token as the `CONFLUENCE_API_TOKEN` value
 6. Use your Atlassian account email as the `CONFLUENCE_EMAIL` value
-7. Use your Confluence Cloud instance URL (e.g., "your-domain.atlassian.net") as the `CONFLUENCE_HOST` value
+7. Use your Confluence Cloud instance URL (e.g., "your-domain.atlassian.net") as the `CONFLUENCE_DOMAIN` value
 
 ## Environment Variables
 
@@ -113,7 +113,7 @@ npm run build
 |----------|----------|-------------|
 | CONFLUENCE_API_TOKEN | Yes | Your Atlassian API token |
 | CONFLUENCE_EMAIL | Yes | Your Atlassian account email |
-| CONFLUENCE_HOST | No | Your Confluence Cloud domain (defaults to "your-domain.atlassian.net") |
+| CONFLUENCE_DOMAIN | No | Your Confluence Cloud domain (defaults to "your-domain.atlassian.net") |
 | MCP_MODE | No | Set to "true" by default in Docker container |
 | LOG_FILE | No | Path to log file (defaults to "/app/logs/confluence-cloud-mcp.log" in Docker) |
 

@@ -14,10 +14,10 @@ if [ -z "$CONFLUENCE_EMAIL" ]; then
     exit 1
 fi
 
-# Optional CONFLUENCE_HOST environment variable
-CONFLUENCE_HOST_ARG=""
-if [ -n "$CONFLUENCE_HOST" ]; then
-    CONFLUENCE_HOST_ARG="-e CONFLUENCE_HOST=$CONFLUENCE_HOST"
+# Optional CONFLUENCE_DOMAIN environment variable
+CONFLUENCE_DOMAIN_ARG=""
+if [ -n "$CONFLUENCE_DOMAIN" ]; then
+    CONFLUENCE_DOMAIN_ARG="-e CONFLUENCE_DOMAIN=$CONFLUENCE_DOMAIN"
 fi
 
 # Run local development image with provided credentials
@@ -25,5 +25,5 @@ echo "Starting confluence-cloud MCP server..."
 docker run --rm -i \
   -e CONFLUENCE_API_TOKEN=$CONFLUENCE_API_TOKEN \
   -e CONFLUENCE_EMAIL=$CONFLUENCE_EMAIL \
-  $CONFLUENCE_HOST_ARG \
+  $CONFLUENCE_DOMAIN_ARG \
   confluence-cloud-mcp:local
