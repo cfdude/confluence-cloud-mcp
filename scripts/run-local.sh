@@ -26,4 +26,4 @@ docker run --rm -i \
   -e CONFLUENCE_API_TOKEN=$CONFLUENCE_API_TOKEN \
   -e CONFLUENCE_EMAIL=$CONFLUENCE_EMAIL \
   $CONFLUENCE_HOST_ARG \
-  confluence-cloud:local
+  confluence-cloud-mcp:local

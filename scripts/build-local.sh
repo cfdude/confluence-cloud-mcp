@@ -93,7 +93,7 @@ run_step "Building TypeScript" "build" "npm run build" || exit 1
 # Build Docker image
 echo "→ Building Docker image..."
 if [ "$VERBOSE" = true ]; then
-    if docker build -t confluence-cloud:local .; then
+    if docker build -t confluence-cloud-mcp:local .; then
         echo -e "${GREEN}${CHECK_MARK} Docker build successful${NC}"
     else
         echo -e "${RED}${X_MARK} Docker build failed${NC}"
@@ -101,7 +101,7 @@ if [ "$VERBOSE" = true ]; then
     fi
 else
     DOCKER_LOG="$TEMP_DIR/docker-build.log"
-    if docker build -t confluence-cloud:local . > "$DOCKER_LOG" 2>&1; then
+    if docker build -t confluence-cloud-mcp:local . > "$DOCKER_LOG" 2>&1; then
         echo -e "${GREEN}${CHECK_MARK} Docker build successful${NC} (log: $DOCKER_LOG)"
         check_log_size "$DOCKER_LOG"
     else
@@ -111,4 +111,4 @@ else
     fi
 fi
 
-echo -e "\n${GREEN}Build complete!${NC} Image tagged as confluence-cloud:local"
+echo -e "\n${GREEN}Build complete!${NC} Image tagged as confluence-cloud-mcp:local"
