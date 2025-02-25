@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Add metadata
-LABEL org.opencontainers.image.source="https://github.com/aaronsb/confluence-cloud"
+LABEL org.opencontainers.image.source="https://github.com/aaronsb/confluence-cloud-mcp"
 LABEL org.opencontainers.image.description="Confluence Cloud MCP Server"
 LABEL org.opencontainers.image.licenses="MIT"
 
