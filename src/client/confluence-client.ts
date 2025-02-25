@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+
 import { ConfluenceError } from '../types/index.js';
 import type { 
   ConfluenceConfig, 

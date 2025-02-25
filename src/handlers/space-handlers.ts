@@ -1,5 +1,6 @@
-import { ConfluenceClient } from "../client/confluence-client.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+
+import { ConfluenceClient } from "../client/confluence-client.js";
 import type { Space, PaginatedResponse } from "../types/index.js";
 
 export async function handleListConfluenceSpaces(

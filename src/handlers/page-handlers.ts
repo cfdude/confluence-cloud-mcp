@@ -1,5 +1,6 @@
-import { ConfluenceClient } from "../client/confluence-client.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+
+import { ConfluenceClient } from "../client/confluence-client.js";
 import { ConfluenceError } from "../types/index.js";
 import type { Page, PaginatedResponse, SimplifiedPage } from "../types/index.js";
 import { convertStorageToMarkdown } from "../utils/content-converter.js";

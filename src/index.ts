@@ -10,8 +10,8 @@ import {
   McpError,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+
 import { ConfluenceClient } from "./client/confluence-client.js";
-import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
 import {
   handleCreateConfluencePage,
   handleGetConfluencePage,
@@ -25,6 +25,7 @@ import {
   handleRemoveConfluenceLabel,
   handleSearchConfluencePages,
 } from "./handlers/search-label-handlers.js";
+import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
 import { toolSchemas } from "./schemas/tool-schemas.js";
 
 // Required environment variables

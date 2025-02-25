@@ -1,7 +1,7 @@
 export function convertStorageToMarkdown(storageFormat: string): string {
   try {
     // First handle Confluence-specific elements
-    let markdown = storageFormat
+    const markdown = storageFormat
       // Remove XML declaration and DOCTYPE
       .replace(/<\?xml.*?\?>/, '')
       .replace(/<!DOCTYPE.*?>/, '')
