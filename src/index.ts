@@ -99,8 +99,7 @@ class ConfluenceServer {
       // Verify API connection - will throw an error if verification fails
       await this.confluenceClient.verifyApiConnection();
       
-      // Log success to stderr instead of stdout to avoid co-mingling with JSON-RPC
-      console.error("Successfully connected to Confluence API");
+      // Connection verification is already logged in the client
     } catch (error) {
       console.error("API verification failed:", error);
       throw error;
