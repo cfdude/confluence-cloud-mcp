@@ -27,3 +27,12 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# MCP Inspector
+.mcp-inspector/
+
+# Local Docker images
+*.local
+
+# Temporary files
+/tmp/confluence-cloud-mcp/

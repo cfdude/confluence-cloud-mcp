@@ -95,8 +95,16 @@ class ConfluenceServer {
       apiToken: process.env.CONFLUENCE_API_TOKEN!,
     });
 
-    // Verify connection to Confluence API
-    await this.confluenceClient.verifyConnection();
+    try {
+      // Verify API connection - will throw an error if verification fails
+      await this.confluenceClient.verifyApiConnection();
+      
+      // Log success to stdout instead of stderr
+      console.log("Successfully connected to Confluence API");
+    } catch (error) {
+      console.error("API verification failed:", error);
+      throw error;
+    }
 
     this.setupHandlers();
 

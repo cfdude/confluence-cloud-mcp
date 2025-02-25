@@ -50,22 +50,41 @@ export class ConfluenceClient {
     console.error('Confluence client configured with domain:', config.domain);
   }
 
-  // Verify the connection to Confluence API
-  async verifyConnection(): Promise<void> {
+  // Verify connection to Confluence API - throws error if verification fails
+  async verifyApiConnection(): Promise<void> {
     try {
+      // Make a simple API call that should work with minimal permissions
       await this.v2Client.get('/spaces', { params: { limit: 1 } });
       console.error('Successfully connected to Confluence API');
     } catch (error) {
+      let errorMessage = 'Failed to connect to Confluence API';
+      
       if (axios.isAxiosError(error)) {
-        // Log only serializable error details
+        // Extract detailed error information
         const errorDetails = {
           status: error.response?.status,
           statusText: error.response?.statusText,
           message: error.message
         };
-        console.error('Failed to connect to Confluence API:', errorDetails);
+        
+        // Provide specific error messages based on status code
+        if (error.response && error.response.status === 401) {
+          errorMessage = 'Authentication failed: Invalid API token or email';
+        } else if (error.response && error.response.status === 403) {
+          errorMessage = 'Authorization failed: Insufficient permissions';
+        } else if (error.response && error.response.status === 404) {
+          errorMessage = 'API endpoint not found: Check Confluence domain';
+        } else if (error.response && error.response.status >= 500) {
+          errorMessage = 'Confluence server error: API may be temporarily unavailable';
+        }
+        
+        console.error(`${errorMessage}:`, errorDetails);
+      } else {
+        console.error(errorMessage + ':', error instanceof Error ? error.message : String(error));
       }
-      throw new Error('Failed to connect to Confluence API');
+      
+      // Throw error with detailed message to fail server initialization
+      throw new Error(errorMessage);
     }
   }
 
