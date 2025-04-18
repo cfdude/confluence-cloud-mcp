@@ -110,16 +110,6 @@ class ConfluenceServer {
       apiToken: process.env.CONFLUENCE_API_TOKEN!,
     });
 
-    try {
-      // Verify API connection - will throw an error if verification fails
-      await this.confluenceClient.verifyApiConnection();
-      
-      // Connection verification is already logged in the client
-    } catch (error) {
-      console.error("API verification failed:", error);
-      throw error;
-    }
-
     this.setupHandlers();
 
     this.server.onerror = (error) => console.error("[MCP Error]", error);

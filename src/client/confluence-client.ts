@@ -17,6 +17,7 @@ export class ConfluenceClient {
   private domain: string;
   private baseURL: string;
   private v2Path: string;
+  private verified: boolean = false;
 
   constructor(config: ConfluenceConfig) {
     this.domain = config.domain;
@@ -90,6 +91,10 @@ export class ConfluenceClient {
 
   // Space operations
   async getConfluenceSpaces(limit = 25, start = 0): Promise<PaginatedResponse<Space>> {
+    if (!this.verified) {
+      await this.verifyApiConnection();
+      this.verified = true;
+    }
     const response = await this.v2Client.get('/spaces', {
       params: { limit, start }
     });
