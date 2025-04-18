@@ -75,7 +75,9 @@ class ConfluenceServer {
     this.server = new Server(
       {
         name: "confluence-cloud",
-        version: "0.1.0",
+        version: "1.10.1",
+        protocolVersion: "2024-11-05",
+        description: "Confluence Cloud MCP Server - Provides tools for interacting with any Confluence Cloud instance"
       },
       {
         capabilities: {
@@ -88,6 +90,19 @@ class ConfluenceServer {
         },
       }
     );
+
+    // Set up required MCP protocol handlers
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: Object.entries(toolSchemas).map(([key, schema]) => ({
+        name: key,
+        description: schema.description,
+        inputSchema: {
+          type: "object",
+          properties: schema.inputSchema.properties,
+          ...(("required" in schema.inputSchema) ? { required: schema.inputSchema.required } : {}),
+        },
+      })),
+    }));
 
     this.confluenceClient = new ConfluenceClient({
       domain: process.env.CONFLUENCE_DOMAIN!,
@@ -115,29 +130,30 @@ class ConfluenceServer {
   }
 
   constructor() {
-    // Initialize asynchronously
+    // Initialize synchronously to ensure server is ready before handling requests
     this.initialize().catch(error => {
       console.error("Failed to initialize server:", error);
       process.exit(1);
     });
   }
 
-  private setupHandlers() {
-    // Set up required MCP protocol handlers
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: Object.entries(toolSchemas).map(([key, schema]) => ({
-        name: key,
-        description: schema.description,
-        inputSchema: {
-          type: "object",
-          properties: schema.inputSchema.properties,
-          ...("required" in schema.inputSchema
-            ? { required: schema.inputSchema.required }
-            : {}),
-        },
-      })),
-    }));
+  // Wait for server to be ready
+  async waitForReady(): Promise<void> {
+    if (!this.server) {
+      await new Promise<void>((resolve) => {
+        const checkServer = () => {
+          if (this.server) {
+            resolve();
+          } else {
+            setTimeout(checkServer, 100);
+          }
+        };
+        checkServer();
+      });
+    }
+  }
 
+  private setupHandlers() {
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       resources: [], // No resources provided by this server
     }));
@@ -259,6 +275,7 @@ class ConfluenceServer {
   }
 
   async run() {
+    await this.waitForReady();
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error("Confluence Cloud MCP server running on stdio");

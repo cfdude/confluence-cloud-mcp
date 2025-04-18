@@ -1,6 +1,6 @@
 {
   "name": "confluence-cloud",
-  "version": "0.1.0",
+  "version": "1.10.1",
   "description": "A Model Context Protocol Server for Atlassian Confluence Cloud",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "@atlaskit/adf-schema": "^46.1.0",
     "@atlaskit/adf-utils": "^19.14.1",
     "@atlaskit/editor-json-transformer": "^8.21.1",
-    "@modelcontextprotocol/sdk": "^1.6.0",
+    "@modelcontextprotocol/sdk": "^1.10.1",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7"
   },

@@ -55,7 +55,7 @@ export class ConfluenceClient {
     try {
       // Make a simple API call that should work with minimal permissions
       await this.v2Client.get('/spaces', { params: { limit: 1 } });
-      process.stderr.write('Successfully connected to Confluence API\n');
+      // Success verification is handled by the caller
     } catch (error) {
       let errorMessage = 'Failed to connect to Confluence API';
       
