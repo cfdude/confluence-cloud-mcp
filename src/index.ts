@@ -12,7 +12,6 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { ConfluenceClient } from "./client/confluence-client.js";
 import {
   handleCreateConfluencePage,
   handleGetConfluencePage,
@@ -27,51 +26,11 @@ import {
   handleSearchConfluencePages,
 } from "./handlers/search-label-handlers.js";
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
+import { handleListConfluenceInstances } from "./handlers/instance-handlers.js";
 import { toolSchemas } from "./schemas/tool-schemas.js";
-
-// Initialize authentication configuration
-function initializeAuthConfig() {
-  const domain = process.env.CONFLUENCE_DOMAIN;
-  if (!domain) {
-    throw new Error('Missing required environment variable: CONFLUENCE_DOMAIN');
-  }
-
-  // Check for OAuth2 configuration first
-  const oauthAccessToken = process.env.CONFLUENCE_OAUTH_ACCESS_TOKEN;
-  if (oauthAccessToken) {
-    return {
-      domain,
-      auth: {
-        type: 'oauth2' as const,
-        accessToken: oauthAccessToken,
-        refreshToken: process.env.CONFLUENCE_OAUTH_REFRESH_TOKEN,
-        clientId: process.env.CONFLUENCE_OAUTH_CLIENT_ID,
-        clientSecret: process.env.CONFLUENCE_OAUTH_CLIENT_SECRET
-      }
-    };
-  }
-
-  // Fall back to basic auth
-  const email = process.env.CONFLUENCE_EMAIL;
-  const apiToken = process.env.CONFLUENCE_API_TOKEN;
-  
-  if (!email || !apiToken) {
-    throw new Error('Missing required environment variables: CONFLUENCE_EMAIL and CONFLUENCE_API_TOKEN');
-  }
-
-  return {
-    domain,
-    auth: {
-      type: 'basic' as const,
-      email,
-      apiToken
-    }
-  };
-}
 
 class ConfluenceServer {
   private server!: Server;
-  private confluenceClient!: ConfluenceClient;
 
   constructor() {
     // Initialize synchronously to ensure server is ready before handling requests
@@ -107,7 +66,7 @@ class ConfluenceServer {
         name: "confluence-cloud",
         version: "1.10.1",
         protocolVersion: "2024-11-05",
-        description: "Confluence Cloud MCP Server - Provides tools for interacting with any Confluence Cloud instance"
+        description: "Confluence Cloud MCP Server - Provides tools for interacting with multiple Confluence Cloud instances"
       },
       {
         capabilities: {
@@ -133,19 +92,6 @@ class ConfluenceServer {
         },
       })),
     }));
-
-    const config = initializeAuthConfig();
-    
-    console.error('Initializing Confluence client with config:', {
-      domain: config.domain,
-      authType: config.auth.type,
-      // Mask sensitive data in logs
-      ...(config.auth.type === 'basic'
-        ? { email: config.auth.email }
-        : { hasAccessToken: !!config.auth.accessToken })
-    });
-
-    this.confluenceClient = new ConfluenceClient(config);
 
     this.setupHandlers();
 
@@ -197,104 +143,46 @@ class ConfluenceServer {
 
       try {
         switch (name) {
+          // Instance management
+          case "list_confluence_instances":
+            return await handleListConfluenceInstances();
+
           // Space operations
-          case "list_confluence_spaces": {
-            const { limit, cursor, sort } = (args || {}) as {
-              limit?: number;
-              cursor?: string;
-              sort?: 'name' | '-name' | 'key' | '-key';
-            };
-            return await handleListConfluenceSpaces(this.confluenceClient, { limit, cursor, sort });
-          }
-          case "get_confluence_space": {
-            const { spaceId } = (args || {}) as { spaceId: string };
-            if (!spaceId) throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
-            return await handleGetConfluenceSpace(this.confluenceClient, { spaceId });
-          }
+          case "list_confluence_spaces":
+            return await handleListConfluenceSpaces(args as any || {});
+          
+          case "get_confluence_space":
+            return await handleGetConfluenceSpace(args as any || {});
 
           // Page operations
-          case "list_confluence_pages": {
-            const { spaceId, limit, cursor, sort, status } = (args || {}) as {
-              spaceId: string;
-              limit?: number;
-              cursor?: string;
-              sort?: 'created-date' | '-created-date' | 'modified-date' | '-modified-date' | 'title' | '-title';
-              status?: 'current' | 'archived' | 'draft' | 'trashed';
-            };
-            if (!spaceId) throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
-            return await handleListConfluencePages(this.confluenceClient, { spaceId, limit, cursor, sort, status });
-          }
-          case "get_confluence_page": {
-            const { pageId } = (args || {}) as { pageId: string };
-            if (!pageId) throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-            return await handleGetConfluencePage(this.confluenceClient, { pageId });
-          }
-          case "find_confluence_page": {
-            const { title, spaceId } = (args || {}) as { title: string; spaceId?: string };
-            if (!title) throw new McpError(ErrorCode.InvalidParams, "title is required");
-            return await handleFindConfluencePage(this.confluenceClient, { title, spaceId });
-          }
-          case "create_confluence_page": {
-            const { spaceId, title, content, parentId } = (args || {}) as { 
-              spaceId: string; 
-              title: string; 
-              content: string; 
-              parentId?: string 
-            };
-            if (!spaceId || !title || !content) {
-              throw new McpError(ErrorCode.InvalidParams, "spaceId, title, and content are required");
-            }
-            return await handleCreateConfluencePage(this.confluenceClient, { spaceId, title, content, parentId });
-          }
-          case "update_confluence_page": {
-            const { pageId, title, content, version } = (args || {}) as {
-              pageId: string;
-              title: string;
-              content: string;
-              version: number;
-            };
-            if (!pageId || !title || !content || version === undefined) {
-              throw new McpError(ErrorCode.InvalidParams, "pageId, title, content, and version are required");
-            }
-            return await handleUpdateConfluencePage(this.confluenceClient, { pageId, title, content, version });
-          }
+          case "list_confluence_pages":
+            return await handleListConfluencePages(args as any || {});
+          
+          case "get_confluence_page":
+            return await handleGetConfluencePage(args as any || {});
+          
+          case "find_confluence_page":
+            return await handleFindConfluencePage(args as any || {});
+          
+          case "create_confluence_page":
+            return await handleCreateConfluencePage(args as any || {});
+          
+          case "update_confluence_page":
+            return await handleUpdateConfluencePage(args as any || {});
 
           // Search operation
-          case "search_confluence_pages": {
-            const { cql, limit, cursor } = (args || {}) as {
-              cql: string;
-              limit?: number;
-              cursor?: string;
-            };
-            if (!cql) throw new McpError(ErrorCode.InvalidParams, "cql is required");
-            return await handleSearchConfluencePages(this.confluenceClient, {
-              cql,
-              limit,
-              cursor
-            });
-          }
+          case "search_confluence_pages":
+            return await handleSearchConfluencePages(args as any || {});
 
           // Label operations
-          case "get_confluence_labels": {
-            const { pageId } = (args || {}) as { pageId: string };
-            if (!pageId) throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-            return await handleGetConfluenceLabels(this.confluenceClient, { pageId });
-          }
-          case "add_confluence_label": {
-            const { pageId, prefix, name } = (args || {}) as { pageId: string; prefix: string; name: string };
-            if (!pageId || !prefix || !name) {
-              throw new McpError(ErrorCode.InvalidParams, "pageId, prefix, and name are required");
-            }
-            if (prefix !== "global") {
-              throw new McpError(ErrorCode.InvalidParams, "prefix must be 'global'");
-            }
-            return await handleAddConfluenceLabel(this.confluenceClient, { pageId, label: name, prefix });
-          }
-          case "remove_confluence_label": {
-            const { pageId, label } = (args || {}) as { pageId: string; label: string };
-            if (!pageId || !label) throw new McpError(ErrorCode.InvalidParams, "pageId and label are required");
-            return await handleRemoveConfluenceLabel(this.confluenceClient, { pageId, label });
-          }
+          case "get_confluence_labels":
+            return await handleGetConfluenceLabels(args as any || {});
+          
+          case "add_confluence_label":
+            return await handleAddConfluenceLabel(args as any || {});
+          
+          case "remove_confluence_label":
+            return await handleRemoveConfluenceLabel(args as any || {});
 
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
@@ -317,6 +205,7 @@ class ConfluenceServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error("Confluence Cloud MCP server running on stdio");
+    console.error("Multi-instance support enabled. Use 'list_confluence_instances' to see configured instances.");
   }
 }
 

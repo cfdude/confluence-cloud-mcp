@@ -8,11 +8,22 @@ interface ToolSchema {
 }
 
 export const toolSchemas: Record<string, ToolSchema> = {
+  list_confluence_instances: {
+    description: "List all configured Confluence instances. Shows available instances, their domains, and configuration details. Use this tool to discover which instances are available and how to use them.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
   list_confluence_spaces: {
     description: "List all available Confluence spaces. Best used as the first step in a content discovery workflow. Returns space IDs, names, and keys that you can use with other tools. TIP: Use a higher limit (e.g., 100) on first call to get a comprehensive view of available spaces.",
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space context or defaults.",
+        },
         limit: {
           type: "number",
           description: "Maximum number of spaces to return (default: 25, max: 250)",
@@ -35,6 +46,10 @@ export const toolSchemas: Record<string, ToolSchema> = {
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space context or defaults.",
+        },
         spaceId: {
           type: "string",
           description: "ID of the space to retrieve",
@@ -49,6 +64,10 @@ export const toolSchemas: Record<string, ToolSchema> = {
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         spaceId: {
           type: "string",
           description: "ID of the space",
@@ -81,6 +100,10 @@ export const toolSchemas: Record<string, ToolSchema> = {
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         pageId: {
           type: "string",
           description: "ID of the page to retrieve",
@@ -95,6 +118,10 @@ export const toolSchemas: Record<string, ToolSchema> = {
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         title: {
           type: "string",
           description: "Exact title of the page to find",
@@ -113,6 +140,10 @@ export const toolSchemas: Record<string, ToolSchema> = {
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         spaceId: {
           type: "string",
           description: "ID of the space where the page will be created",
@@ -139,6 +170,10 @@ export const toolSchemas: Record<string, ToolSchema> = {
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         pageId: {
           type: "string",
           description: "ID of the page to update",
@@ -175,6 +210,10 @@ Returns page summaries with IDs for detailed retrieval. TIP: Use ~ for fuzzy mat
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         cql: {
           type: "string",
           description: "CQL (Confluence Query Language) query string",
@@ -197,6 +236,10 @@ Returns page summaries with IDs for detailed retrieval. TIP: Use ~ for fuzzy mat
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         pageId: {
           type: "string",
           description: "ID of the page",
@@ -218,6 +261,10 @@ Common uses: categorization, workflow states, team ownership, priority marking. 
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         contentId: {
           type: "string",
           description: "ID of the page to add label to",
@@ -241,6 +288,10 @@ Common uses: categorization, workflow states, team ownership, priority marking. 
     inputSchema: {
       type: "object",
       properties: {
+        instance: {
+          type: "string",
+          description: "Optional: Specific Confluence instance to use. If not provided, instance will be determined from space/page context or defaults.",
+        },
         pageId: {
           type: "string",
           description: "ID of the page",

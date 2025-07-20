@@ -1,320 +1,316 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-
-import { ConfluenceClient } from "../client/confluence-client.js";
-import { ConfluenceError } from "../types/index.js";
-import type { Page, PaginatedResponse, SimplifiedPage } from "../types/index.js";
+import { withConfluenceContext } from "../utils/tool-wrapper.js";
+import { cachePageInstance } from "../utils/instance-cache.js";
+import type { ToolArgs } from "../utils/tool-wrapper.js";
 import { convertStorageToMarkdown } from "../utils/content-converter.js";
 
-function convertToSimplifiedPage(page: Page, markdownContent: string): SimplifiedPage {
-  return {
-    title: page.title,
-    content: markdownContent,
-    metadata: {
-      id: page.id,
-      spaceId: page.spaceId,
-      version: page.version.number,
-      lastModified: page.version.createdAt,
-      url: page._links.webui
-    }
-  };
+interface ListPagesArgs extends ToolArgs {
+  spaceId: string;
+  limit?: number;
+  cursor?: string;
+  sort?: 'created-date' | '-created-date' | 'modified-date' | '-modified-date' | 'title' | '-title';
+  status?: 'current' | 'archived' | 'draft' | 'trashed';
 }
 
-export async function handleListConfluencePages(
-  client: ConfluenceClient,
-  args: {
-    spaceId: string;
-    limit?: number;
-    cursor?: string;
-    sort?: 'created-date' | '-created-date' | 'modified-date' | '-modified-date' | 'title' | '-title';
-    status?: 'current' | 'archived' | 'draft' | 'trashed';
-  }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.spaceId) {
-      throw new McpError(ErrorCode.InvalidParams, "spaceId is required");
-    }
-
-    const pages = await client.getConfluencePages(args.spaceId, {
-      limit: args.limit,
-      cursor: args.cursor,
-      sort: args.sort,
-      status: args.status
-    });
-    
-    const simplified = {
-      results: pages.results.map(page => ({
-        id: page.id,
-        title: page.title,
-        spaceId: page.spaceId,
-        version: page.version.number,
-        parentId: page.parentId || null,
-        status: page.status.value,
-        _links: page._links
-      })),
-      cursor: pages._links.next?.split('cursor=')[1],
-      limit: pages.limit,
-      size: pages.size,
-      hasMore: !!pages._links.next
-    };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Error listing pages:", error instanceof Error ? error.message : String(error));
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to list pages: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
-
-export async function handleGetConfluencePage(
-  client: ConfluenceClient,
-  args: { pageId: string }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.pageId) {
-      throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-    }
-
-    try {
-      const page = await client.getConfluencePage(args.pageId);
-      
-      // Check if we have content to convert
-      if (page.body?.storage?.value) {
-        // Convert to markdown and return simplified page
-        const markdownContent = convertStorageToMarkdown(page.body.storage.value);
-        const simplified = convertToSimplifiedPage(page, markdownContent);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(simplified, null, 2),
-            },
-          ],
-        };
-      } else {
-        // Return page metadata without content if no body available
-        const simplified = {
-          id: page.id,
-          title: page.title,
-          spaceId: page.spaceId,
-          version: page.version.number,
-          parentId: page.parentId || null,
-          content: null,
-          status: page.status.value,
-          url: page._links.webui
-        };
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(simplified, null, 2),
-            },
-          ],
-        };
-      }
-    } catch (error) {
-      if (error instanceof ConfluenceError) {
-        switch (error.code) {
-          case 'PAGE_NOT_FOUND':
-            throw new McpError(ErrorCode.InvalidParams, "Page not found");
-          case 'INSUFFICIENT_PERMISSIONS':
-            throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions to access page");
-          case 'EMPTY_CONTENT':
-            throw new McpError(ErrorCode.InternalError, "Page content is empty");
-          default:
-            throw new McpError(ErrorCode.InternalError, error.message);
+export async function handleListConfluencePages(args: ListPagesArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresSpace: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const pages = await client.getConfluencePages(
+          toolArgs.spaceId,
+          {
+            limit: toolArgs.limit,
+            cursor: toolArgs.cursor,
+            sort: toolArgs.sort,
+            status: toolArgs.status
+          }
+        );
+        
+        // Cache page instances for future lookups
+        for (const page of pages.results) {
+          await cachePageInstance(page.id, toolArgs.spaceId, instanceName);
         }
+        
+        // Transform to minimal format with cursor pagination support
+        const simplified = {
+          instance: instanceName,
+          spaceId: toolArgs.spaceId,
+          results: pages.results.map(page => ({
+            id: page.id,
+            title: page.title,
+            status: page.status.value,
+            parentId: page.parentId || null,
+            createdAt: page.createdAt,
+            version: page.version.number,
+            _links: {
+              webui: page._links.webui
+            }
+          })),
+          cursor: pages._links.next?.split('cursor=')[1],
+          limit: pages.limit,
+          size: pages.size,
+          hasMore: !!pages._links.next
+        };
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(simplified, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error listing pages:", error instanceof Error ? error.message : String(error));
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to list pages: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
-      throw error;
     }
-  } catch (error) {
-    console.error("Error getting page:", error instanceof Error ? error.message : String(error));
-    if (error instanceof McpError) {
-      throw error;
-    }
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to get page: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+  );
 }
 
-export async function handleFindConfluencePage(
-  client: ConfluenceClient,
-  args: { title: string; spaceId?: string }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.title) {
-      throw new McpError(ErrorCode.InvalidParams, "title is required");
-    }
-
-    const pages = await client.searchPageByName(args.title, args.spaceId);
-    
-    if (pages.length === 0) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `No pages found with title "${args.title}"`
-      );
-    }
-
-    if (pages.length > 1) {
-      // If multiple pages found, return a list of matches
-      const matches = pages.map(page => ({
-        id: page.id,
-        title: page.title,
-        spaceId: page.spaceId,
-        url: page._links.webui
-      }));
-      
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `Multiple pages found with title "${args.title}". Please use get_confluence_page with one of these IDs: ${JSON.stringify(matches)}`
-      );
-    }
-
-    // Get the full page content for the single match
-    const page = await client.getConfluencePage(pages[0].id);
-    
-    if (!page.body?.storage?.value) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        "Page content is empty"
-      );
-    }
-
-    const markdownContent = convertStorageToMarkdown(page.body.storage.value);
-    const simplified = convertToSimplifiedPage(page, markdownContent);
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Error getting page by name:", error instanceof Error ? error.message : String(error));
-    if (error instanceof McpError) {
-      throw error;
-    }
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to get page: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+interface GetPageArgs extends ToolArgs {
+  pageId: string;
 }
 
-export async function handleCreateConfluencePage(
-  client: ConfluenceClient,
-  args: { spaceId: string; title: string; content: string; parentId?: string }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.spaceId || !args.title || !args.content) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        "spaceId, title, and content are required"
-      );
+export async function handleGetConfluencePage(args: GetPageArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresPage: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const page = await client.getConfluencePage(toolArgs.pageId);
+        
+        // Cache the page instance
+        await cachePageInstance(page.id, page.spaceId, instanceName);
+        
+        // Convert content to markdown
+        const markdownContent = page.body?.storage?.value 
+          ? convertStorageToMarkdown(page.body.storage.value)
+          : '';
+        
+        // Return simplified format with markdown
+        const simplified = {
+          instance: instanceName,
+          title: page.title,
+          content: markdownContent,
+          metadata: {
+            id: page.id,
+            spaceId: page.spaceId,
+            status: page.status.value,
+            version: page.version.number,
+            createdAt: page.createdAt,
+            lastModified: page.version.createdAt,
+            parentId: page.parentId || null,
+            url: page._links.webui
+          }
+        };
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(simplified, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error getting page:", error instanceof Error ? error.message : String(error));
+        if (error instanceof McpError) {
+          throw error;
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to get page: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
-
-    const page = await client.createConfluencePage(
-      args.spaceId,
-      args.title,
-      args.content,
-      args.parentId
-    );
-
-    const simplified = {
-      id: page.id,
-      title: page.title,
-      version: page.version.number,
-      status: page.status.value,
-      url: page._links.webui
-    };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Error creating page:", error instanceof Error ? error.message : String(error));
-    if (error instanceof McpError) {
-      throw error;
-    }
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to create page: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+  );
 }
 
-export async function handleUpdateConfluencePage(
-  client: ConfluenceClient,
-  args: { pageId: string; title: string; content: string; version: number }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.pageId || !args.title || !args.content || args.version === undefined) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        "pageId, title, content, and version are required"
-      );
+interface FindPageArgs extends ToolArgs {
+  title: string;
+  spaceId?: string;
+}
+
+export async function handleFindConfluencePage(args: FindPageArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresSpace: false },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const page = await client.findConfluencePageByTitle(toolArgs.title, toolArgs.spaceId);
+        
+        // Cache the page instance
+        await cachePageInstance(page.id, page.spaceId, instanceName);
+        
+        // Convert content to markdown
+        const markdownContent = page.body?.storage?.value 
+          ? convertStorageToMarkdown(page.body.storage.value)
+          : '';
+        
+        // Return simplified format
+        const simplified = {
+          instance: instanceName,
+          title: page.title,
+          content: markdownContent,
+          metadata: {
+            id: page.id,
+            spaceId: page.spaceId,
+            status: page.status.value,
+            version: page.version.number,
+            createdAt: page.createdAt,
+            lastModified: page.version.createdAt,
+            parentId: page.parentId || null,
+            url: page._links.webui
+          }
+        };
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(simplified, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error finding page:", error instanceof Error ? error.message : String(error));
+        if (error instanceof McpError) {
+          throw error;
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to find page: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
+  );
+}
 
-    const page = await client.updateConfluencePage(
-      args.pageId,
-      args.title,
-      args.content,
-      args.version
-    );
+interface CreatePageArgs extends ToolArgs {
+  spaceId: string;
+  title: string;
+  content: string;
+  parentId?: string;
+}
 
-    const simplified = {
-      id: page.id,
-      title: page.title,
-      version: page.version.number,
-      status: page.status.value,
-      url: page._links.webui
-    };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Error updating page:", error instanceof Error ? error.message : String(error));
-    if (error instanceof McpError) {
-      throw error;
+export async function handleCreateConfluencePage(args: CreatePageArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresSpace: true },
+    async (toolArgs, { client, instanceName, spaceConfig }) => {
+      try {
+        // Apply default parent page if configured and not provided
+        const parentId = toolArgs.parentId || spaceConfig?.defaultParentPageId;
+        
+        const page = await client.createConfluencePage(
+          toolArgs.spaceId,
+          toolArgs.title,
+          toolArgs.content,
+          parentId
+        );
+        
+        // Cache the new page instance
+        await cachePageInstance(page.id, toolArgs.spaceId, instanceName);
+        
+        // Apply default labels if configured
+        if (spaceConfig?.defaultLabels && spaceConfig.defaultLabels.length > 0) {
+          for (const label of spaceConfig.defaultLabels) {
+            try {
+              await client.addConfluenceLabel(
+                page.id,
+                label,
+                'global'
+              );
+            } catch (error) {
+              console.warn(`Failed to add default label "${label}":`, error);
+            }
+          }
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                instance: instanceName,
+                message: "Page created successfully",
+                pageId: page.id,
+                title: page.title,
+                spaceId: page.spaceId,
+                version: page.version.number,
+                url: page._links.webui
+              }, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error creating page:", error instanceof Error ? error.message : String(error));
+        if (error instanceof McpError) {
+          throw error;
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to create page: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to update page: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+  );
+}
+
+interface UpdatePageArgs extends ToolArgs {
+  pageId: string;
+  title: string;
+  content: string;
+  version: number;
+}
+
+export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresPage: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const page = await client.updateConfluencePage(
+          toolArgs.pageId,
+          toolArgs.title,
+          toolArgs.content,
+          toolArgs.version
+        );
+        
+        // Update cache with the latest instance info
+        await cachePageInstance(page.id, page.spaceId, instanceName);
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                instance: instanceName,
+                message: "Page updated successfully",
+                pageId: page.id,
+                title: page.title,
+                version: page.version.number,
+                url: page._links.webui
+              }, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error updating page:", error instanceof Error ? error.message : String(error));
+        if (error instanceof McpError) {
+          throw error;
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to update page: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
 }

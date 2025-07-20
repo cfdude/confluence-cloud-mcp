@@ -371,6 +371,27 @@ export class ConfluenceClient {
     return response.data;
   }
 
+  async findConfluencePageByTitle(title: string, spaceId?: string): Promise<Page> {
+    const pages = await this.searchPageByName(title, spaceId);
+    
+    if (pages.length === 0) {
+      throw new ConfluenceError(
+        `No page found with title: ${title}`,
+        'PAGE_NOT_FOUND'
+      );
+    }
+    
+    if (pages.length > 1) {
+      throw new ConfluenceError(
+        `Multiple pages found with title: ${title}. Please specify a space ID.`,
+        'MULTIPLE_MATCHES'
+      );
+    }
+    
+    // Get the full page content
+    return this.getConfluencePage(pages[0].id);
+  }
+
   // Label operations
   async getConfluenceLabels(pageId: string): Promise<PaginatedResponse<Label>> {
     const response = await this.client.get(`/pages/${pageId}/labels`);

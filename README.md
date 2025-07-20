@@ -2,10 +2,16 @@
 
 A Model Context Protocol (MCP) server that provides tools for interacting with Confluence Cloud. This server enables AI assistants to manage Confluence spaces, pages, and content through a standardized interface.
 
+**Now with multi-instance support!** Work with multiple Confluence instances seamlessly. See [CONFIGURATION.md](CONFIGURATION.md) for details.
+
 [![CI/CD Pipeline](https://github.com/aaronsb/confluence-cloud-mcp/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/aaronsb/confluence-cloud-mcp/actions/workflows/ci-cd.yml)
 
 ## Features
 
+- **Multi-Instance Support**
+  - Work with multiple Confluence instances
+  - Automatic instance routing based on space context
+  - Per-instance authentication
 - Space Management
   - List spaces
   - Get space details
@@ -55,8 +61,28 @@ CONFLUENCE_API_TOKEN=your-token CONFLUENCE_EMAIL=your-email ./scripts/run-local.
 npm install
 ```
 
-2. Configure environment variables:
-Create a `.env` file with your Confluence credentials:
+2. Configure your instance(s):
+
+**For multiple instances**, create `~/.confluence-config.json`:
+```json
+{
+  "instances": {
+    "prod": {
+      "domain": "company.atlassian.net",
+      "email": "user@company.com",
+      "apiToken": "your-api-token"
+    },
+    "dev": {
+      "domain": "company-dev.atlassian.net",
+      "email": "user@company.com",
+      "apiToken": "your-api-token"
+    }
+  },
+  "defaultInstance": "prod"
+}
+```
+
+**For a single instance**, create a `.env` file:
 ```
 CONFLUENCE_DOMAIN=your-domain.atlassian.net
 CONFLUENCE_EMAIL=your-email@domain.com
@@ -99,6 +125,9 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 > **Note for AI Assistants**: If you're an AI assistant like Cline trying to install this MCP server, please refer to the [llms-install.md](llms-install.md) file for detailed installation instructions.
 
 ## Available Tools
+
+### Instance Management
+- `list_confluence_instances`: List all configured Confluence instances
 
 ### Space Tools
 - `list_confluence_spaces`: List all spaces in Confluence

@@ -1,259 +1,229 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { withConfluenceContext } from "../utils/tool-wrapper.js";
+import { cachePageInstance } from "../utils/instance-cache.js";
+import type { ToolArgs } from "../utils/tool-wrapper.js";
+import { ConfluenceError } from "../types/index.js";
 
-import { ConfluenceClient } from "../client/confluence-client.js";
-import { ConfluenceError, type Label, type SearchResult } from "../types/index.js";
-
-export async function handleSearchConfluencePages(
-  client: ConfluenceClient,
-  args: {
-    cql: string;
-    limit?: number;
-    cursor?: string;
-  }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.cql) {
-      throw new McpError(ErrorCode.InvalidParams, "cql is required");
-    }
-
-    // Use the advanced V1 search with CQL support
-    const results = await client.searchContentV1(args.cql, {
-      limit: args.limit,
-      start: args.cursor ? parseInt(args.cursor, 10) : 0
-    });
-    
-    const simplified = {
-      results: results.results.map(result => ({
-        id: result.content.id,
-        title: result.content.title,
-        type: result.content.type,
-        spaceId: result.content.space?.id,
-        spaceKey: result.content.space?.key,
-        version: result.content.version,
-        url: result.content._links.webui,
-        excerpt: result.excerpt
-      })),
-      cursor: results._links.next ? String(results.start + results.limit) : undefined,
-      size: results.size,
-      hasMore: !!results._links.next
-    };
-    
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Error searching pages:", error instanceof Error ? error.message : String(error));
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to search pages: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+interface SearchPagesArgs extends ToolArgs {
+  cql: string;
+  limit?: number;
+  cursor?: string;
 }
 
-export async function handleGetConfluenceLabels(
-  client: ConfluenceClient,
-  args: { pageId: string }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.pageId) {
-      throw new McpError(ErrorCode.InvalidParams, "pageId is required");
-    }
-
-    const labels = await client.getConfluenceLabels(args.pageId);
-    const simplified = {
-      labels: labels.results.map((label: Label) => ({
-        id: label.id,
-        name: label.name,
-        prefix: label.prefix || 'global'
-      })),
-      hasMore: !!labels._links.next
-    };
-    
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Error getting labels:", error instanceof Error ? error.message : String(error));
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to get labels: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
-
-export async function handleAddConfluenceLabel(
-  client: ConfluenceClient,
-  args: { pageId: string; label: string; prefix?: string }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.pageId || !args.label) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        "pageId and label are required"
-      );
-    }
-
-    // Validate label format
-    if (!/^[a-zA-Z0-9-_]+$/.test(args.label)) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        "Label must contain only letters, numbers, hyphens, and underscores"
-      );
-    }
-
-    // First check if the page exists and is accessible
-    try {
-      await client.getConfluencePage(args.pageId);
-    } catch (error: unknown) {
-      if (error instanceof ConfluenceError) {
-        switch (error.code) {
-          case 'PAGE_NOT_FOUND':
-            throw new McpError(ErrorCode.InvalidParams, "Page not found");
-          case 'INSUFFICIENT_PERMISSIONS':
-            throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions to access page");
-          default:
-            throw new McpError(ErrorCode.InternalError, error.message);
+export async function handleSearchConfluencePages(args: SearchPagesArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresSpace: false },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const results = await client.searchConfluenceContent(
+          toolArgs.cql,
+          {
+            limit: toolArgs.limit,
+            start: toolArgs.cursor ? parseInt(toolArgs.cursor) : undefined
+          }
+        );
+        
+        // Cache page instances for search results
+        for (const result of results.results) {
+          if (result.content?.spaceId) {
+            await cachePageInstance(
+              result.content.id,
+              result.content.spaceId,
+              instanceName
+            );
+          }
         }
+        
+        // Transform to simplified format
+        const simplified = {
+          instance: instanceName,
+          cql: toolArgs.cql,
+          results: results.results.map(result => ({
+            id: result.content.id,
+            type: result.content.type,
+            title: result.content.title,
+            spaceId: result.content.spaceId,
+            excerpt: result.excerpt,
+            lastModified: result.lastModified,
+            url: result.content._links.webui
+          })),
+          cursor: results._links.next ? 
+            new URL(results._links.next).searchParams.get('cursor') : undefined,
+          hasMore: !!results._links.next,
+          size: results.size,
+          totalSize: results.size
+        };
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(simplified, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error searching content:", error instanceof Error ? error.message : String(error));
+        if (error instanceof ConfluenceError && error.code === 'SEARCH_FAILED') {
+          throw new McpError(
+            ErrorCode.InvalidRequest,
+            `Invalid CQL query: ${error.message}`
+          );
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to search content: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
-      throw error;
     }
-
-    const label = await client.addConfluenceLabel(args.pageId, args.label, args.prefix || 'global');
-    const simplified = {
-      success: true,
-      label: {
-        id: label.id,
-        name: label.name,
-        prefix: label.prefix || 'global',
-        createdAt: label.createdAt || null
-      },
-      message: `Successfully added label '${args.label}' to page ${args.pageId}`
-    };
-    
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error: unknown) {
-    console.error("Error adding label:", error instanceof Error ? error.message : String(error));
-    
-    if (error instanceof McpError) {
-      throw error;
-    }
-
-    // Handle specific HTTP errors from the Confluence API
-    if (error instanceof ConfluenceError) {
-      switch (error.code) {
-        case 'LABEL_EXISTS':
-          throw new McpError(ErrorCode.InvalidRequest, `Label '${args.label}' already exists on this page`);
-        case 'INVALID_LABEL':
-          throw new McpError(ErrorCode.InvalidParams, "Invalid label format");
-        case 'PERMISSION_DENIED':
-          throw new McpError(ErrorCode.InvalidRequest, "You don't have permission to add labels to this page");
-        default:
-          throw new McpError(ErrorCode.InternalError, `Failed to add label: ${error.message}`);
-      }
-    }
-
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to add label: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+  );
 }
 
-export async function handleRemoveConfluenceLabel(
-  client: ConfluenceClient,
-  args: { pageId: string; label: string }
-): Promise<{
-  content: Array<{ type: "text"; text: string }>;
-}> {
-  try {
-    if (!args.pageId || !args.label) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        "pageId and label are required"
-      );
-    }
+interface GetLabelsArgs extends ToolArgs {
+  pageId: string;
+}
 
-    // First check if the page exists and is accessible
-    try {
-      await client.getConfluencePage(args.pageId);
-    } catch (error: unknown) {
-      if (error instanceof ConfluenceError) {
-        switch (error.code) {
-          case 'PAGE_NOT_FOUND':
-            throw new McpError(ErrorCode.InvalidParams, "Page not found");
-          case 'INSUFFICIENT_PERMISSIONS':
-            throw new McpError(ErrorCode.InvalidRequest, "Insufficient permissions to access page");
-          default:
-            throw new McpError(ErrorCode.InternalError, error.message);
+export async function handleGetConfluenceLabels(args: GetLabelsArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresPage: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const labels = await client.getConfluenceLabels(toolArgs.pageId);
+        
+        // Transform to simplified format
+        const simplified = {
+          instance: instanceName,
+          pageId: toolArgs.pageId,
+          labels: labels.results.map(label => ({
+            id: label.id,
+            name: label.name,
+            prefix: label.prefix
+          }))
+        };
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(simplified, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error getting labels:", error instanceof Error ? error.message : String(error));
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to get labels: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+}
+
+interface AddLabelArgs extends ToolArgs {
+  pageId: string;
+  label: string;
+  prefix?: string;
+}
+
+export async function handleAddConfluenceLabel(args: AddLabelArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresPage: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        const result = await client.addConfluenceLabel(
+          toolArgs.pageId,
+          toolArgs.label,
+          toolArgs.prefix || 'global'
+        );
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                instance: instanceName,
+                message: "Label added successfully",
+                pageId: toolArgs.pageId,
+                label: {
+                  id: result.id,
+                  name: result.name,
+                  prefix: result.prefix,
+                  createdAt: result.createdAt
+                }
+              }, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error adding label:", error instanceof Error ? error.message : String(error));
+        if (error instanceof ConfluenceError) {
+          if (error.code === 'LABEL_EXISTS') {
+            throw new McpError(
+              ErrorCode.InvalidRequest,
+              `Label already exists: ${error.message}`
+            );
+          } else if (error.code === 'INVALID_LABEL') {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              `Invalid label format: ${error.message}`
+            );
+          }
         }
-      }
-      throw error;
-    }
-
-    await client.removeConfluenceLabel(args.pageId, args.label);
-    const simplified = {
-      success: true,
-      message: `Successfully removed label '${args.label}' from page ${args.pageId}`,
-      details: {
-        pageId: args.pageId,
-        label: args.label,
-        operation: 'remove'
-      }
-    };
-    
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(simplified, null, 2),
-        },
-      ],
-    };
-  } catch (error: unknown) {
-    console.error("Error removing label:", error instanceof Error ? error.message : String(error));
-    
-    if (error instanceof McpError) {
-      throw error;
-    }
-
-    // Handle specific HTTP errors from the Confluence API
-    if (error instanceof ConfluenceError) {
-      switch (error.code) {
-        case 'PAGE_NOT_FOUND':
-          throw new McpError(ErrorCode.InvalidParams, "Page not found");
-        case 'PERMISSION_DENIED':
-          throw new McpError(ErrorCode.InvalidRequest, "You don't have permission to remove labels from this page");
-        default:
-          throw new McpError(ErrorCode.InternalError, `Failed to remove label: ${error.message}`);
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to add label: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
+  );
+}
 
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to remove label: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+interface RemoveLabelArgs extends ToolArgs {
+  pageId: string;
+  label: string;
+}
+
+export async function handleRemoveConfluenceLabel(args: RemoveLabelArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresPage: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        await client.removeConfluenceLabel(
+          toolArgs.pageId,
+          toolArgs.label
+        );
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                instance: instanceName,
+                message: "Label removed successfully",
+                pageId: toolArgs.pageId,
+                label: toolArgs.label
+              }, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error("Error removing label:", error instanceof Error ? error.message : String(error));
+        if (error instanceof ConfluenceError && error.code === 'LABEL_EXISTS') {
+          throw new McpError(
+            ErrorCode.InvalidRequest,
+            `Label not found: ${error.message}`
+          );
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to remove label: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
 }
