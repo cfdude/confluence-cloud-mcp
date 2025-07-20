@@ -1,0 +1,74 @@
+Confluence MCP Handler Improvements
+=================================
+
+Label Operations:
+☐ Improve error handling:
+  - Add specific HTTP status code handling in ConfluenceClient
+  - Map API errors to meaningful MCP errors
+  - Add permission checking before operations
+  - Enhance error messages for better AI understanding
+☐ Update label handlers:
+  - Add proper error mapping
+  - Improve response format
+  - Add validation checks
+
+Search Results:
+☐ Expand space information:
+  - Include space key and name
+  - Add space type (personal/team)
+  - Include space URL
+  - Update response mapping
+☐ Enhance response structure:
+  - Add more context to results
+  - Improve excerpt formatting
+  - Include relevant metadata
+
+Page Listing:
+☐ Add extended metadata:
+  - Creation date
+  - Last modified date
+  - Author information
+  - Web UI URL
+  - Space key (alongside spaceId)
+☐ Implement pagination improvements:
+  - Add total count
+  - Include page number
+  - Better next/previous handling
+☐ Add optional expand parameter:
+  - Allow requesting additional metadata
+  - Support selective field expansion
+  - Optimize response size
+
+Error Handling:
+☐ Add specific error types:
+  - PageNotFound
+  - MultipleMatchesFound
+  - InsufficientPermissions
+  - EmptyContent
+☐ Improve error messages to be AI-friendly
+☐ Add debug logging throughout
+✓ Improve API verification:
+  - Implemented API verification that fails server initialization if verification fails
+  - Added detailed error messages based on HTTP status codes
+  - Added clear error reporting for connection issues
+☐ Further API verification improvements:
+  - Add environment variable to optionally disable verification if needed
+  - Add retry mechanism for transient connection failures
+
+Testing:
+☐ Test with various scenarios:
+  - Existing pages
+  - Missing pages
+  - Pages with/without content
+  - Multiple pages with same name
+  - Different content formats
+  - Label operations
+  - Search functionality
+  - Pagination handling
+
+Documentation:
+☐ Update tool schemas with clear descriptions
+☐ Add examples for common use cases
+☐ Document error scenarios and how to handle them
+☐ Add inline code documentation
+☐ Create usage examples for each tool

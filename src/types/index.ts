@@ -48,7 +48,11 @@ export interface Page {
   title: string;
   spaceId: string; // Changed to match v2
   parentId?: string;
+  parentType?: 'page';
+  position?: number;
   authorId: string;
+  ownerId?: string;
+  lastOwnerId?: string | null;
   createdAt: string;
   version: {
     number: number;
@@ -136,8 +140,21 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// V2 Error Response
-export interface ConfluenceError {
+// Simplified page interface for easier consumption
+export interface SimplifiedPage {
+  title: string;
+  content: string; // markdown
+  metadata: {
+    id: string;
+    spaceId: string;
+    version: number;
+    lastModified: string;
+    url: string;
+  };
+}
+
+// V2 Error Response interface for API responses
+export interface ConfluenceErrorResponse {
   statusCode: number;
   message: string;
   data?: {
@@ -147,6 +164,17 @@ export interface ConfluenceError {
     successful?: boolean;
     failed?: boolean;
   };
+}
+
+// Error class for throwing exceptions
+export class ConfluenceError extends Error {
+  constructor(
+    message: string,
+    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN' | 'SEARCH_FAILED' | 'LABEL_EXISTS' | 'INVALID_LABEL' | 'PERMISSION_DENIED'
+  ) {
+    super(message);
+    this.name = 'ConfluenceError';
+  }
 }
 
 // Rate Limit Info
