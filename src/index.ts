@@ -281,14 +281,14 @@ class ConfluenceServer {
             return await handleGetConfluenceLabels(this.confluenceClient, { pageId });
           }
           case "add_confluence_label": {
-            const { contentId, prefix, name } = (args || {}) as { contentId: string; prefix: string; name: string };
-            if (!contentId || !prefix || !name) {
-              throw new McpError(ErrorCode.InvalidParams, "contentId, prefix, and name are required");
+            const { pageId, prefix, name } = (args || {}) as { pageId: string; prefix: string; name: string };
+            if (!pageId || !prefix || !name) {
+              throw new McpError(ErrorCode.InvalidParams, "pageId, prefix, and name are required");
             }
             if (prefix !== "global") {
               throw new McpError(ErrorCode.InvalidParams, "prefix must be 'global'");
             }
-            return await handleAddConfluenceLabel(this.confluenceClient, { contentId, prefix, name });
+            return await handleAddConfluenceLabel(this.confluenceClient, { pageId, label: name, prefix });
           }
           case "remove_confluence_label": {
             const { pageId, label } = (args || {}) as { pageId: string; label: string };

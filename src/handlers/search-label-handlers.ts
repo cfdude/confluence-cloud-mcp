@@ -141,7 +141,7 @@ export async function handleAddConfluenceLabel(
         id: label.id,
         name: label.name,
         prefix: label.prefix || 'global',
-        createdDate: label.createdDate || null
+        createdAt: label.createdAt || null
       },
       message: `Successfully added label '${args.label}' to page ${args.pageId}`
     };

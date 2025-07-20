@@ -5,12 +5,13 @@ import type {
   Page,
   Label,
   SearchResult,
+  ConfluenceSearchResult,
   PaginatedResponse,
   RateLimitInfo,
-  ConfluenceError,
   V1SearchResponse,
   SimplifiedPage
 } from '../types/index.js';
+import { ConfluenceError } from '../types/index.js';
 
 export class ConfluenceClient {
   private client: AxiosInstance;
@@ -466,7 +467,7 @@ export class ConfluenceClient {
   async searchConfluenceContent(query: string, options: {
     limit?: number;
     start?: number;
-  } = {}): Promise<SearchResult> {
+  } = {}): Promise<ConfluenceSearchResult> {
     try {
       console.error('Searching Confluence with CQL:', query);
       
@@ -496,9 +497,12 @@ export class ConfluenceClient {
           lastModified: result.content.version?.when,
           excerpt: result.excerpt || ''
         })),
+        start: response.data.start || 0,
+        limit: response.data.limit || 25,
+        size: response.data.size || 0,
         _links: {
           next: response.data._links?.next,
-          base: this.baseURL + '/rest/api'
+          self: response.data._links?.self || ''
         }
       };
     } catch (error) {

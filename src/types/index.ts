@@ -120,11 +120,38 @@ export interface V1SearchResult {
       webui: string;
     };
   };
+  excerpt?: string;
 }
 
 // V2 Search Result type (TODO: V2 API ready when search is more robust)
 export interface SearchResult extends PaginatedResponse<Page> {
   results: Page[];
+}
+
+// Custom search result type for searchConfluenceContent method
+export interface ConfluenceSearchResult {
+  results: Array<{
+    content: {
+      id: string;
+      type: string;
+      status: string;
+      title: string;
+      spaceId?: string;
+      _links: {
+        webui: string;
+      };
+    };
+    url: string;
+    lastModified?: string;
+    excerpt: string;
+  }>;
+  start: number;
+  limit: number;
+  size: number;
+  _links: {
+    next?: string;
+    self: string;
+  };
 }
 
 // Generic paginated response
