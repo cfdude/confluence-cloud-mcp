@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import dotenv from "dotenv";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -11,7 +10,9 @@ import {
   McpError,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import dotenv from "dotenv";
 
+import { handleListConfluenceInstances } from "./handlers/instance-handlers.js";
 import {
   handleCreateConfluencePage,
   handleGetConfluencePage,
@@ -26,7 +27,6 @@ import {
   handleSearchConfluencePages,
 } from "./handlers/search-label-handlers.js";
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from "./handlers/space-handlers.js";
-import { handleListConfluenceInstances } from "./handlers/instance-handlers.js";
 import { toolSchemas } from "./schemas/tool-schemas.js";
 
 class ConfluenceServer {

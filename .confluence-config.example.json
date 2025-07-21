@@ -1,0 +1,33 @@
+{
+  "instances": {
+    "production": {
+      "domain": "company.atlassian.net",
+      "email": "user@company.com",
+      "apiToken": "ATATT3xFfGF0T...",
+      "spaces": ["DOCS", "KB", "API"]
+    },
+    "development": {
+      "domain": "company-dev.atlassian.net",
+      "email": "user@company.com",
+      "apiToken": "ATATT3xFfGF1U...",
+      "spaces": ["TEST", "SANDBOX"]
+    },
+    "personal": {
+      "domain": "john-personal.atlassian.net",
+      "email": "john@personal.com",
+      "apiToken": "ATATT3xFfGF2V..."
+    }
+  },
+  "spaces": {
+    "DOCS": {
+      "instance": "production",
+      "defaultParentPageId": "98765",
+      "defaultLabels": ["official", "reviewed"]
+    },
+    "TEST": {
+      "instance": "development",
+      "defaultLabels": ["draft", "testing"]
+    }
+  },
+  "defaultInstance": "production"
+}

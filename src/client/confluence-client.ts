@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError, RawAxiosResponseHeaders, AxiosResponseHeaders } from 'axios';
+
 import type {
   ConfluenceConfig,
   Space,
@@ -19,7 +20,7 @@ export class ConfluenceClient {
   private domain: string;
   private baseURL: string;
   private v2Path: string;
-  private verified: boolean = false;
+  private verified = false;
   private rateLimitInfo: RateLimitInfo = {
     limit: 0,
     remaining: 0,
@@ -398,7 +399,7 @@ export class ConfluenceClient {
     return response.data;
   }
 
-  async addConfluenceLabel(pageId: string, label: string, prefix: string = 'global'): Promise<Label> {
+  async addConfluenceLabel(pageId: string, label: string, prefix = 'global'): Promise<Label> {
     try {
       // V2 API uses a different endpoint and format
       const response = await this.client.post(`/pages/${pageId}/labels`, {

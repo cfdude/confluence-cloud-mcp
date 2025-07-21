@@ -1,8 +1,9 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-import { withConfluenceContext } from "../utils/tool-wrapper.js";
-import { cachePageInstance } from "../utils/instance-cache.js";
-import type { ToolArgs } from "../utils/tool-wrapper.js";
+
 import { ConfluenceError } from "../types/index.js";
+import { cachePageInstance } from "../utils/instance-cache.js";
+import { withConfluenceContext } from "../utils/tool-wrapper.js";
+import type { ToolArgs } from "../utils/tool-wrapper.js";
 
 interface SearchPagesArgs extends ToolArgs {
   cql: string;

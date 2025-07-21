@@ -1,4 +1,5 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+
 import { listAvailableInstances } from "../config.js";
 
 export async function handleListConfluenceInstances() {

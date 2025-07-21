@@ -1,4 +1,5 @@
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+
 import { withConfluenceContext } from "../utils/tool-wrapper.js";
 import type { ToolArgs } from "../utils/tool-wrapper.js";
 

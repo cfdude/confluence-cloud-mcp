@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import { homedir } from 'os';
 import { join } from 'path';
+
 import type { ConfluenceConfig } from './types/index.js';
 
 export interface InstanceConfig {
@@ -29,7 +30,7 @@ interface MultiInstanceConfig {
 
 // Global config cache
 let configCache: MultiInstanceConfig | null = null;
-let configLoadTime: number = 0;
+let configLoadTime = 0;
 const CONFIG_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**

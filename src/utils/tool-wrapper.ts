@@ -51,10 +51,9 @@ export async function withConfluenceContext<T extends ToolArgs, R>(
   try {
     let instanceName: string;
     let instanceConfig: ConfluenceConfig;
-    let spaceKey: string | undefined;
     
     // Extract space key from various sources
-    spaceKey = extractSpaceKey(args);
+    const spaceKey = extractSpaceKey(args);
     
     // If we have a pageId but no space, try to get instance from cache
     if (args.pageId && !spaceKey && !args.instance) {
