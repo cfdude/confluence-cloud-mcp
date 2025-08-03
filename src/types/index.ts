@@ -197,7 +197,17 @@ export interface ConfluenceErrorResponse {
 export class ConfluenceError extends Error {
   constructor(
     message: string,
-    public readonly code: 'PAGE_NOT_FOUND' | 'MULTIPLE_MATCHES' | 'INSUFFICIENT_PERMISSIONS' | 'EMPTY_CONTENT' | 'UNKNOWN' | 'SEARCH_FAILED' | 'LABEL_EXISTS' | 'INVALID_LABEL' | 'PERMISSION_DENIED'
+    public readonly code:
+      | 'PAGE_NOT_FOUND'
+      | 'MULTIPLE_MATCHES'
+      | 'INSUFFICIENT_PERMISSIONS'
+      | 'EMPTY_CONTENT'
+      | 'UNKNOWN'
+      | 'SEARCH_FAILED'
+      | 'LABEL_EXISTS'
+      | 'INVALID_LABEL'
+      | 'PERMISSION_DENIED'
+      | 'PROPERTY_SET_FAILED'
   ) {
     super(message);
     this.name = 'ConfluenceError';

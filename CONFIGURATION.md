@@ -209,3 +209,229 @@ If you're currently using environment variables:
 2. Move credentials to the JSON format
 3. Remove environment variables
 4. The server will automatically use the new configuration
+
+## Cross-Server Integration
+
+The Confluence MCP server supports integration with Jira MCP servers, enabling bidirectional communication and cross-platform workflows.
+
+### Prerequisites
+
+1. **Jira MCP Server** - You need a running Jira MCP server instance
+2. **Environment Configuration** - Copy `.env.example` to `.env` and configure cross-server settings
+
+### Configuration
+
+#### Basic Setup
+
+To enable cross-server integration, configure these environment variables in your `.env` file:
+
+```bash
+# Enable cross-server integration
+CROSS_SERVER_ENABLED=true
+
+# Path to your Jira MCP server
+JIRA_MCP_PATH=/Users/yourusername/Servers/mcp-jira/build/index.js
+
+# Connection settings
+JIRA_MCP_TIMEOUT=30000
+JIRA_MCP_MAX_RETRIES=3
+SERVER_POLL_INTERVAL=10000
+```
+
+#### Safety Boundaries
+
+Configure which operations are allowed between servers:
+
+```bash
+# Operations that can be sent to Jira servers
+ALLOWED_OUTGOING_MODES=read,create,update
+
+# Operations that are prohibited
+EXCLUDED_OUTGOING_OPERATIONS=delete_issue,delete_project
+
+# Operations that can be received from Jira servers
+ALLOWED_INCOMING_MODES=read,create
+
+# Rate limiting
+RATE_LIMIT_PER_MINUTE=30
+RATE_LIMIT_PER_HOUR=1000
+MAX_CROSS_SERVER_BATCH=10
+```
+
+### Available Cross-Server Tools
+
+#### 1. Link Confluence to Jira
+Create bidirectional links between Confluence pages and Jira issues:
+
+```json
+{
+  "tool": "link_confluence_to_jira",
+  "arguments": {
+    "pageId": "123456",
+    "jiraKey": "PROJ-123",
+    "linkType": "documents",
+    "description": "Requirements documentation"
+  }
+}
+```
+
+**Link Types:**
+- `documents` - Page documents the Jira issue
+- `implements` - Page implements the feature in the issue
+- `tests` - Page contains test plans for the issue
+- `references` - Page references or relates to the issue
+
+#### 2. Create Confluence from Jira
+Generate Confluence pages from Jira issues using templates:
+
+```json
+{
+  "tool": "create_confluence_from_jira",
+  "arguments": {
+    "jiraKey": "EPIC-456",
+    "templateType": "epic-documentation",
+    "spaceId": "DOCS",
+    "parentId": "789012"
+  }
+}
+```
+
+**Template Types:**
+- `epic-documentation` - Comprehensive epic documentation
+- `feature-spec` - Feature specification template
+- `meeting-notes` - Meeting notes template
+
+#### 3. Health Checks
+Monitor cross-server connectivity:
+
+```json
+{
+  "tool": "jira_health_check",
+  "arguments": {
+    "serverPath": "/path/to/jira/server"
+  }
+}
+```
+
+```json
+{
+  "tool": "confluence_health_check",
+  "arguments": {}
+}
+```
+
+#### 4. Server Discovery
+Discover and refresh connections to Jira servers:
+
+```json
+{
+  "tool": "discover_jira_servers",
+  "arguments": {
+    "refresh": true
+  }
+}
+```
+
+### Server Roles
+
+The Confluence MCP server operates as the **master** in cross-server relationships:
+
+- **Master (Confluence)** - Initiates connections and polls for Jira servers
+- **Slave (Jira)** - Responds to connection requests and provides services
+
+### Connection Flow
+
+1. **Startup** - Confluence server starts and reads cross-server configuration
+2. **Discovery** - Searches for configured Jira servers at specified paths
+3. **Connection** - Attempts to establish MCP connections to discovered servers
+4. **Polling** - Continuously monitors Jira server availability
+5. **Integration** - Cross-server tools become available when connections are established
+
+### Monitoring and Troubleshooting
+
+#### Health Check Commands
+
+```bash
+# Check Confluence server health
+npm run inspector -- --tool confluence_health_check
+
+# Check Jira server connectivity
+npm run inspector -- --tool jira_health_check
+
+# Discover available Jira servers
+npm run inspector -- --tool discover_jira_servers --args '{"refresh": true}'
+```
+
+#### Common Issues
+
+**"No Jira MCP server available"**
+- Verify `JIRA_MCP_PATH` points to the correct server file
+- Check that the Jira MCP server is built and executable
+- Ensure cross-server integration is enabled (`CROSS_SERVER_ENABLED=true`)
+
+**Connection timeouts**
+- Increase `JIRA_MCP_TIMEOUT` value
+- Check network connectivity between servers
+- Verify the Jira server is responding to health checks
+
+**Permission denied errors**
+- Review `ALLOWED_OUTGOING_MODES` and `EXCLUDED_OUTGOING_OPERATIONS`
+- Check safety boundary configurations
+- Verify rate limits are not being exceeded
+
+#### Circuit Breaker
+
+The system includes a circuit breaker pattern to handle Jira server failures:
+
+- **Closed** - Normal operation, requests are sent
+- **Open** - Server is failing, requests are blocked
+- **Half-Open** - Testing if server has recovered
+
+Circuit breaker settings:
+- **Error Threshold** - 5 consecutive failures trigger open state
+- **Reset Timeout** - 30 seconds before attempting recovery
+
+### Security Considerations
+
+1. **Operation Filtering** - Use `EXCLUDED_OUTGOING_OPERATIONS` to prevent dangerous operations
+2. **Mode Restrictions** - Limit `ALLOWED_OUTGOING_MODES` to only necessary operations
+3. **Rate Limiting** - Configure appropriate limits to prevent abuse
+4. **Confirmation Requirements** - Set operations that need explicit confirmation
+
+### Example Workflow
+
+Here's a complete workflow for linking documentation:
+
+1. **Create Epic Documentation**
+   ```json
+   {
+     "tool": "create_confluence_from_jira",
+     "arguments": {
+       "jiraKey": "EPIC-789",
+       "templateType": "epic-documentation",
+       "spaceId": "ENGINEERING"
+     }
+   }
+   ```
+
+2. **Link Related Issues**
+   ```json
+   {
+     "tool": "link_confluence_to_jira",
+     "arguments": {
+       "pageId": "created-page-id",
+       "jiraKey": "TASK-123",
+       "linkType": "implements"
+     }
+   }
+   ```
+
+3. **Monitor Health**
+   ```json
+   {
+     "tool": "jira_health_check",
+     "arguments": {}
+   }
+   ```
+
+This creates a comprehensive documentation structure with bidirectional traceability between Confluence pages and Jira issues.

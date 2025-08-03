@@ -30,13 +30,13 @@ function extractSpaceKey(args: ToolArgs): string | undefined {
   // Direct space key or ID
   if (args.spaceKey) return args.spaceKey;
   if (args.spaceId) return args.spaceId;
-  
+
   // From search CQL
   if (args.cql) {
     const spaceMatch = args.cql.match(/space\s*=\s*["']([^"']+)["']/i);
     if (spaceMatch) return spaceMatch[1];
   }
-  
+
   return undefined;
 }
 
@@ -51,10 +51,10 @@ export async function withConfluenceContext<T extends ToolArgs, R>(
   try {
     let instanceName: string;
     let instanceConfig: ConfluenceConfig;
-    
+
     // Extract space key from various sources
     const spaceKey = extractSpaceKey(args);
-    
+
     // If we have a pageId but no space, try to get instance from cache
     if (args.pageId && !spaceKey && !args.instance) {
       const cachedInstance = await getInstanceForPageId(args.pageId);
@@ -74,24 +74,24 @@ export async function withConfluenceContext<T extends ToolArgs, R>(
       instanceName = result.instanceName;
       instanceConfig = instanceToConfluenceConfig(result.config);
     }
-    
+
     // Create client for this instance
     const client = new ConfluenceClient(instanceConfig);
-    
+
     // Get space config if available
     const spaceConfig = spaceKey ? await getSpaceConfig(spaceKey) : undefined;
-    
+
     // Create context
     const context: ToolContext = {
       client,
       instanceName,
       instanceConfig,
-      spaceConfig
+      spaceConfig,
     };
-    
+
     // Execute the tool handler
     const result = await handler(args, context);
-    
+
     // Cache page-to-instance mapping if we got a page result
     if ((result as any)?.content?.id && (result as any)?.content?.spaceId) {
       await cachePageInstance(
@@ -100,7 +100,7 @@ export async function withConfluenceContext<T extends ToolArgs, R>(
         instanceName
       );
     }
-    
+
     return result;
   } catch (error) {
     // Enhance error messages for instance-related issues

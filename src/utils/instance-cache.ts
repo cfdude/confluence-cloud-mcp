@@ -17,29 +17,29 @@ export async function getInstanceForPageId(
   pageId: string
 ): Promise<{ instanceName: string; config: InstanceConfig } | null> {
   const entry = pageInstanceCache.get(pageId);
-  
+
   if (!entry) return null;
-  
+
   // Check if cache entry is expired
   if (Date.now() - entry.timestamp > CACHE_TTL) {
     pageInstanceCache.delete(pageId);
     return null;
   }
-  
+
   // Load config and return instance
   const { loadMultiInstanceConfig } = await import('../config.js');
   const config = await loadMultiInstanceConfig();
   const instanceConfig = config.instances[entry.instanceName];
-  
+
   if (!instanceConfig) {
     // Instance no longer exists in config
     pageInstanceCache.delete(pageId);
     return null;
   }
-  
+
   return {
     instanceName: entry.instanceName,
-    config: instanceConfig
+    config: instanceConfig,
   };
 }
 
@@ -54,9 +54,9 @@ export async function cachePageInstance(
   pageInstanceCache.set(pageId, {
     instanceName,
     spaceKey,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
-  
+
   // Cleanup old entries periodically
   cleanupCache();
 }
@@ -82,10 +82,10 @@ let lastCleanup = 0;
 function cleanupCache(): void {
   // Only cleanup every 5 minutes
   if (Date.now() - lastCleanup < 5 * 60 * 1000) return;
-  
+
   lastCleanup = Date.now();
   const now = Date.now();
-  
+
   for (const [pageId, entry] of pageInstanceCache.entries()) {
     if (now - entry.timestamp > CACHE_TTL) {
       pageInstanceCache.delete(pageId);
@@ -104,11 +104,11 @@ export function getCacheStats(): {
   const entries = Array.from(pageInstanceCache.entries()).map(([pageId, entry]) => ({
     pageId,
     instanceName: entry.instanceName,
-    age: Math.floor((now - entry.timestamp) / 1000) // age in seconds
+    age: Math.floor((now - entry.timestamp) / 1000), // age in seconds
   }));
-  
+
   return {
     size: pageInstanceCache.size,
-    entries
+    entries,
   };
 }
