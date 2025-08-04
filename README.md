@@ -22,6 +22,10 @@ A Model Context Protocol (MCP) server that provides tools for interacting with C
 - Search & Labels
   - Search content using CQL
   - Manage page labels
+- **Cross-Server Integration**
+  - Link Confluence pages to Jira issues
+  - Generate Confluence documentation from Jira issues
+  - Health checks and server discovery
 
 ## Setup
 
@@ -153,6 +157,13 @@ The `get_confluence_page` tool now automatically converts Confluence storage for
 - `get_confluence_labels`: Get labels for a page
 - `add_confluence_label`: Add a label to a page
 - `remove_confluence_label`: Remove a label from a page
+
+### Cross-Server Integration Tools
+- `jira_health_check`: Check connectivity status with Jira MCP servers
+- `confluence_health_check`: Get comprehensive health information for this server
+- `discover_jira_servers`: List available Jira MCP servers for integration
+- `link_confluence_to_jira`: Create smart links from Confluence pages to Jira issues
+- `create_confluence_from_jira`: Generate templated Confluence documentation from Jira issues
 
 > **Note**: All tool names follow the [verb]_confluence_[noun] naming convention for consistency and clarity.
 

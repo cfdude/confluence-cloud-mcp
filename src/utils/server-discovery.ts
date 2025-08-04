@@ -386,7 +386,7 @@ export async function createServerDiscoveryConfig(): Promise<ServerDiscoveryConf
   }
 
   // Use the first enabled Jira server for now
-  const primaryServer = crossServerConfig.jiraMcpServers.find((server) => server.enabled);
+  const primaryServer = crossServerConfig.jiraMcpServers.find((server: any) => server.enabled);
 
   return {
     enabled: crossServerConfig.enabled,

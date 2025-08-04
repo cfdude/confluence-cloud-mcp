@@ -26,6 +26,52 @@ interface MultiInstanceConfig {
   instances: Record<string, InstanceConfig>;
   spaces?: Record<string, SpaceConfig>;
   defaultInstance?: string;
+  crossServerIntegration?: {
+    enabled: boolean;
+    role: 'master' | 'slave';
+    jiraMcpServers?: Array<{
+      name: string;
+      httpEndpoint: string;
+      healthEndpoint: string;
+      serverType?: string;
+      enabled: boolean;
+      timeout?: number;
+      maxRetries?: number;
+      pollInterval?: number;
+      allowedOperations?: string[];
+      excludedOperations?: string[];
+      allowedModes?: string[];
+    }>;
+    safetyBoundaries?: {
+      allowedIncomingModes: string[];
+      allowedOutgoingModes: string[];
+      excludedIncomingOperations: string[];
+      excludedOutgoingOperations: string[];
+      maxBatchSize: number;
+      requireConfirmation: string[];
+      rateLimits: {
+        operationsPerMinute: number;
+        operationsPerHour: number;
+      };
+    };
+    templates?: {
+      epicDocumentation?: {
+        enabled: boolean;
+        defaultSpace: string;
+        parentPageId?: string;
+      };
+      featureSpec?: {
+        enabled: boolean;
+        defaultSpace: string;
+        parentPageId?: string;
+      };
+      meetingNotes?: {
+        enabled: boolean;
+        defaultSpace: string;
+        parentPageId?: string;
+      };
+    };
+  };
 }
 
 // Global config cache
@@ -236,62 +282,86 @@ export function instanceToConfluenceConfig(instance: InstanceConfig): Confluence
 }
 
 /**
- * Get cross-server integration configuration from environment variables
+ * Get cross-server integration configuration from JSON config file
  */
-export function getCrossServerConfig() {
-  const config = {
-    enabled: process.env.CROSS_SERVER_ENABLED === 'true',
-    jiraServerUrl: process.env.JIRA_SERVER_URL,
-    healthCheckInterval: parseInt(process.env.HEALTH_CHECK_INTERVAL || '30000', 10),
-    allowedOperations: process.env.ALLOWED_OPERATIONS?.split(',') || [],
-    excludedOperations: process.env.EXCLUDED_OPERATIONS?.split(',') || [],
-    allowedModes: process.env.ALLOWED_MODES?.split(',') || ['read', 'create', 'update'],
-    role: (process.env.SERVER_ROLE as 'master' | 'slave') || 'slave',
-    jiraMcpServers: [] as Array<{
-      enabled: boolean;
-      httpEndpoint?: string;
-      healthEndpoint?: string;
-      pollInterval?: number;
-      timeout?: number;
-      maxRetries?: number;
-      allowedOperations?: string[];
-      excludedOperations?: string[];
-      allowedModes?: string[];
-    }>,
-    safetyBoundaries: {
-      allowedIncomingModes: (process.env.ALLOWED_INCOMING_MODES || 'read,create').split(','),
-      allowedOutgoingModes: (process.env.ALLOWED_OUTGOING_MODES || 'read').split(','),
-      excludedIncomingOperations: (process.env.EXCLUDED_INCOMING_OPERATIONS || '')
-        .split(',')
-        .filter(Boolean),
-      excludedOutgoingOperations: (process.env.EXCLUDED_OUTGOING_OPERATIONS || '')
-        .split(',')
-        .filter(Boolean),
-      maxBatchSize: parseInt(process.env.MAX_BATCH_SIZE || '10', 10),
-      requireConfirmation: (process.env.REQUIRE_CONFIRMATION || '').split(',').filter(Boolean),
-      rateLimits: {
-        operationsPerMinute: parseInt(process.env.OPERATIONS_PER_MINUTE || '60', 10),
-        operationsPerHour: parseInt(process.env.OPERATIONS_PER_HOUR || '1000', 10),
+export async function getCrossServerConfig() {
+  try {
+    const config = await loadMultiInstanceConfig();
+    const crossServerConfig = config.crossServerIntegration;
+
+    if (!crossServerConfig || !crossServerConfig.enabled) {
+      return {
+        enabled: false,
+        healthCheckInterval: 30000,
+        allowedOperations: [],
+        excludedOperations: [],
+        allowedModes: ['read', 'create', 'update'],
+        role: 'slave' as 'master' | 'slave',
+        jiraMcpServers: [],
+        safetyBoundaries: {
+          allowedIncomingModes: ['read', 'create'],
+          allowedOutgoingModes: ['read'],
+          excludedIncomingOperations: [],
+          excludedOutgoingOperations: [],
+          maxBatchSize: 10,
+          requireConfirmation: [],
+          rateLimits: {
+            operationsPerMinute: 60,
+            operationsPerHour: 1000,
+          },
+        },
+      };
+    }
+
+    return {
+      enabled: crossServerConfig.enabled,
+      healthCheckInterval: 30000,
+      allowedOperations: crossServerConfig.safetyBoundaries?.allowedIncomingModes || [],
+      excludedOperations: crossServerConfig.safetyBoundaries?.excludedIncomingOperations || [],
+      allowedModes: crossServerConfig.safetyBoundaries?.allowedIncomingModes || [
+        'read',
+        'create',
+        'update',
+      ],
+      role: (crossServerConfig.role as 'master' | 'slave') || 'slave',
+      jiraMcpServers: crossServerConfig.jiraMcpServers || [],
+      safetyBoundaries: crossServerConfig.safetyBoundaries || {
+        allowedIncomingModes: ['read', 'create'],
+        allowedOutgoingModes: ['read'],
+        excludedIncomingOperations: [],
+        excludedOutgoingOperations: [],
+        maxBatchSize: 10,
+        requireConfirmation: [],
+        rateLimits: {
+          operationsPerMinute: 60,
+          operationsPerHour: 1000,
+        },
       },
-    },
-  };
-
-  // Add Jira server configuration if URL is provided
-  if (config.jiraServerUrl) {
-    config.jiraMcpServers.push({
-      enabled: true,
-      httpEndpoint: config.jiraServerUrl,
-      healthEndpoint: `${config.jiraServerUrl}/health`,
-      pollInterval: config.healthCheckInterval,
-      timeout: 30000,
-      maxRetries: 3,
-      allowedOperations: config.allowedOperations,
-      excludedOperations: config.excludedOperations,
-      allowedModes: config.allowedModes,
-    });
+    };
+  } catch (error) {
+    // Fall back to environment variables if JSON config fails
+    return {
+      enabled: process.env.CROSS_SERVER_ENABLED === 'true',
+      healthCheckInterval: parseInt(process.env.HEALTH_CHECK_INTERVAL || '30000', 10),
+      allowedOperations: process.env.ALLOWED_OPERATIONS?.split(',') || [],
+      excludedOperations: process.env.EXCLUDED_OPERATIONS?.split(',') || [],
+      allowedModes: process.env.ALLOWED_MODES?.split(',') || ['read', 'create', 'update'],
+      role: (process.env.SERVER_ROLE as 'master' | 'slave') || 'slave',
+      jiraMcpServers: [],
+      safetyBoundaries: {
+        allowedIncomingModes: ['read', 'create'],
+        allowedOutgoingModes: ['read'],
+        excludedIncomingOperations: [],
+        excludedOutgoingOperations: [],
+        maxBatchSize: 10,
+        requireConfirmation: [],
+        rateLimits: {
+          operationsPerMinute: 60,
+          operationsPerHour: 1000,
+        },
+      },
+    };
   }
-
-  return config;
 }
 
 /**

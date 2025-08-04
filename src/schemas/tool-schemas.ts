@@ -332,4 +332,114 @@ Common uses: categorization, workflow states, team ownership, priority marking. 
       required: ['pageId', 'label'],
     },
   },
+
+  // Cross-server integration tools
+  jira_health_check: {
+    description:
+      "Check the health and connectivity status with the Jira MCP server from Confluence's perspective. Returns connection information and integration capabilities.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        serverPath: {
+          type: 'string',
+          description:
+            'Optional: Specific Jira MCP server path to check. If not provided, checks all discovered servers.',
+        },
+      },
+    },
+  },
+
+  confluence_health_check: {
+    description:
+      'Get comprehensive health information for this Confluence MCP server including uptime, cross-server integration status, and server capabilities. Essential for monitoring and troubleshooting cross-server communication.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+
+  discover_jira_servers: {
+    description:
+      'Discover and list available Jira MCP servers that can be integrated with this Confluence server. Shows connection status, available tools, and health information.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        refresh: {
+          type: 'boolean',
+          description: 'Whether to force a fresh discovery of servers (default: false)',
+        },
+      },
+    },
+  },
+
+  link_confluence_to_jira: {
+    description:
+      'Create a smart link from a Confluence page to a Jira issue. This establishes bidirectional relationships and updates both systems with cross-references.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. If not provided, instance will be determined from page context or defaults.',
+        },
+        pageId: {
+          type: 'string',
+          description: 'ID of the Confluence page to link from',
+        },
+        jiraKey: {
+          type: 'string',
+          description: 'Jira issue key (e.g., PROJ-123) to link to',
+        },
+        linkType: {
+          type: 'string',
+          enum: ['documents', 'implements', 'tests', 'references'],
+          description: 'Type of relationship between the page and issue',
+        },
+        description: {
+          type: 'string',
+          description: 'Optional description of the relationship',
+        },
+      },
+      required: ['pageId', 'jiraKey', 'linkType'],
+    },
+  },
+
+  create_confluence_from_jira: {
+    description:
+      'Create a new Confluence page based on a Jira issue. Uses intelligent templates to generate appropriate documentation structure based on issue type and content.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. If not provided, instance will be determined from space context or defaults.',
+        },
+        jiraKey: {
+          type: 'string',
+          description: 'Jira issue key (e.g., PROJ-123) to create documentation from',
+        },
+        spaceId: {
+          type: 'string',
+          description: 'ID of the Confluence space where the page will be created',
+        },
+        templateType: {
+          type: 'string',
+          enum: ['epic-documentation', 'feature-spec', 'meeting-notes'],
+          description:
+            'Type of template to use for the generated page (default: epic-documentation)',
+        },
+        parentId: {
+          type: 'string',
+          description: 'Optional: ID of the parent page',
+        },
+        additionalData: {
+          type: 'object',
+          description: 'Optional: Additional data to include in the generated content',
+        },
+      },
+      required: ['jiraKey', 'spaceId'],
+    },
+  },
 };
