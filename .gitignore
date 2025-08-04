@@ -36,6 +36,9 @@ CLAUDE.md
 .mcp-inspector/
 .mcp.json
 
+# Serena MCP cache
+.serena/
+
 # Local Docker images
 *.local
 

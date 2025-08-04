@@ -295,5 +295,21 @@ export function createServerPollingFunction(
   return { start, stop, poll };
 }
 
-// Global health check manager instance
-export const healthCheckManager = new HealthCheckManager();
+// Global health check manager instance - will be initialized with config
+export let healthCheckManager: HealthCheckManager;
+
+// Initialize with configuration - to be called from index.ts
+export async function initializeHealthCheckManager() {
+  try {
+    // Import getCrossServerConfig here to avoid circular dependencies
+    const { getCrossServerConfig } = await import('../config.js');
+    const crossServerConfig = await getCrossServerConfig();
+    
+    healthCheckManager = new HealthCheckManager('1.10.1', crossServerConfig.enabled);
+    return healthCheckManager;
+  } catch (error) {
+    // Fallback to default if config loading fails
+    healthCheckManager = new HealthCheckManager('1.10.1', false);
+    return healthCheckManager;
+  }
+}
