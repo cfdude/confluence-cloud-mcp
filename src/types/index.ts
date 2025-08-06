@@ -208,6 +208,9 @@ export class ConfluenceError extends Error {
       | 'INVALID_LABEL'
       | 'PERMISSION_DENIED'
       | 'PROPERTY_SET_FAILED'
+      | 'ACCESS_DENIED'
+      | 'INVALID_REQUEST'
+      | 'MOVE_FAILED'
   ) {
     super(message);
     this.name = 'ConfluenceError';

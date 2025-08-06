@@ -3,6 +3,7 @@ import axios, {
   AxiosError,
   RawAxiosResponseHeaders,
   AxiosResponseHeaders,
+  isAxiosError,
 } from 'axios';
 
 import type {
@@ -10,12 +11,10 @@ import type {
   Space,
   Page,
   Label,
-  SearchResult,
   ConfluenceSearchResult,
   PaginatedResponse,
   RateLimitInfo,
   V1SearchResponse,
-  SimplifiedPage,
 } from '../types/index.js';
 import { ConfluenceError } from '../types/index.js';
 
@@ -138,7 +137,7 @@ export class ConfluenceClient {
     } catch (error) {
       let errorMessage = 'Failed to connect to Confluence API';
 
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         // Extract detailed error information
         const errorDetails = {
           status: error.response?.status,
@@ -247,7 +246,7 @@ export class ConfluenceClient {
       const response = await this.client.get('/pages', { params });
       return response.data.results;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         console.error('Error searching for page:', error.message);
         throw new ConfluenceError(`Failed to search for page: ${error.message}`, 'UNKNOWN');
       }
@@ -274,7 +273,7 @@ export class ConfluenceClient {
 
       return content;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         if (error.response?.status === 404) {
           throw new ConfluenceError('Page content not found', 'PAGE_NOT_FOUND');
         }
@@ -324,7 +323,7 @@ export class ConfluenceClient {
         throw contentError;
       }
     } catch (error) {
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         console.error('Error fetching page:', error.message);
         throw this.handleError(error);
       }
@@ -372,7 +371,7 @@ export class ConfluenceClient {
         value: content,
       },
       version: {
-        number: version + 1,
+        number: version,
         message: 'Updated via API',
       },
     };
@@ -414,7 +413,7 @@ export class ConfluenceClient {
       return response.data;
     } catch (error) {
       // Fall back to V1 API if V2 fails
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status === 404) {
         const response = await this.clientV1.post(`/content/${pageId}/label`, {
           prefix,
           name: label,
@@ -422,7 +421,7 @@ export class ConfluenceClient {
         return response.data;
       }
 
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         switch (error.response?.status) {
           case 400:
             throw new ConfluenceError(
@@ -453,12 +452,12 @@ export class ConfluenceClient {
       await this.client.delete(`/pages/${pageId}/labels/${label}`);
     } catch (error) {
       // Fall back to V1 API if V2 fails
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status === 404) {
         await this.clientV1.delete(`/content/${pageId}/label/${label}`);
         return;
       }
 
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         switch (error.response?.status) {
           case 403:
             throw new ConfluenceError(
@@ -522,7 +521,7 @@ export class ConfluenceClient {
         },
       };
     } catch (error) {
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         console.error('Error searching content:', error.message, error.response?.data);
         throw new ConfluenceError(`Failed to search content: ${error.message}`, 'SEARCH_FAILED');
       }
@@ -559,7 +558,7 @@ export class ConfluenceClient {
       });
     } catch (error) {
       // Fall back to V1 API
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status === 404) {
         await this.clientV1.put(`/content/${pageId}/property/${key}`, {
           key,
           value,
@@ -567,12 +566,56 @@ export class ConfluenceClient {
         return;
       }
 
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         console.error('Error setting content property:', error.response?.data);
         throw new ConfluenceError(
           `Failed to set content property: ${error.message}`,
           'PROPERTY_SET_FAILED'
         );
+      }
+      throw error;
+    }
+  }
+
+  // Move page to a new location
+  async moveConfluencePage(
+    pageId: string,
+    targetParentId: string,
+    position: 'append' | 'before' | 'after' = 'append'
+  ): Promise<void> {
+    try {
+      // Use V1 API for move operation as it's the documented approach
+      await this.clientV1.put(`/content/${pageId}/move/${position}/${targetParentId}`, {}, {
+        headers: {
+          'Atl-Confluence-With-Admin-Key': true,
+        },
+      });
+    } catch (error) {
+      if (isAxiosError(error)) {
+        console.error('Error moving page:', error.response?.data);
+        
+        switch (error.response?.status) {
+          case 404:
+            throw new ConfluenceError(
+              `Page ${pageId} or target parent ${targetParentId} not found`,
+              'PAGE_NOT_FOUND'
+            );
+          case 403:
+            throw new ConfluenceError(
+              'Insufficient permissions to move this page',
+              'ACCESS_DENIED'
+            );
+          case 400:
+            throw new ConfluenceError(
+              `Invalid move operation: ${error.response?.data?.message || error.message}`,
+              'INVALID_REQUEST'
+            );
+          default:
+            throw new ConfluenceError(
+              `Failed to move page: ${error.message}`,
+              'MOVE_FAILED'
+            );
+        }
       }
       throw error;
     }

@@ -12,6 +12,15 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
 
+import { getCrossServerConfig } from './config.js';
+import {
+  handleJiraHealthCheck,
+  handleConfluenceHealthCheck,
+  handleDiscoverJiraServers,
+  handleLinkConfluenceToJira,
+  handleCreateConfluenceFromJira,
+  setServerDiscoveryManager,
+} from './handlers/cross-server-handlers.js';
 import { handleListConfluenceInstances } from './handlers/instance-handlers.js';
 import {
   handleCreateConfluencePage,
@@ -19,6 +28,7 @@ import {
   handleFindConfluencePage,
   handleListConfluencePages,
   handleUpdateConfluencePage,
+  handleMoveConfluencePage,
 } from './handlers/page-handlers.js';
 import {
   handleAddConfluenceLabel,
@@ -28,9 +38,12 @@ import {
 } from './handlers/search-label-handlers.js';
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from './handlers/space-handlers.js';
 import { toolSchemas } from './schemas/tool-schemas.js';
+import { initializeHealthCheckManager } from './utils/health-check.js';
+import { ServerDiscoveryManager } from './utils/server-discovery.js';
 
 class ConfluenceServer {
   private server!: Server;
+  private serverDiscoveryManager?: ServerDiscoveryManager;
 
   constructor() {
     // Initialize synchronously to ensure server is ready before handling requests
@@ -41,6 +54,9 @@ class ConfluenceServer {
   }
 
   private async initialize() {
+    // Initialize health check manager with cross-server config
+    await initializeHealthCheckManager();
+    
     // Loading tool schemas
     // Available schemas loaded
 
@@ -94,6 +110,9 @@ class ConfluenceServer {
       })),
     }));
 
+    // Initialize cross-server integration
+    await this.initializeCrossServerIntegration();
+
     this.setupHandlers();
 
     this.server.onerror = (_error) => {
@@ -103,6 +122,41 @@ class ConfluenceServer {
       await this.server.close();
       process.exit(0);
     });
+  }
+
+  private async initializeCrossServerIntegration() {
+    try {
+      // Get cross-server configuration
+      const crossServerConfig = await getCrossServerConfig();
+
+      if (!crossServerConfig.enabled) {
+        return;
+      }
+
+      // Create server discovery configuration
+      const discoveryConfig = {
+        enabled: true,
+        jiraMcpEndpoint: 'http://localhost:3001/mcp',
+        jiraMcpHealthEndpoint: 'http://localhost:3001/mcp/health',
+        pollInterval: crossServerConfig.healthCheckInterval || 30000,
+        connectionTimeout: 30000,
+        maxRetries: 3,
+        allowedOperations: crossServerConfig.allowedOperations || [],
+        excludedOperations: crossServerConfig.excludedOperations || [],
+        allowedModes: crossServerConfig.allowedModes || ['read', 'create'],
+      };
+
+      // Initialize server discovery manager
+      this.serverDiscoveryManager = new ServerDiscoveryManager(discoveryConfig);
+
+      // Set the discovery manager for cross-server handlers
+      setServerDiscoveryManager(this.serverDiscoveryManager);
+
+      // Start discovery process
+      await this.serverDiscoveryManager.start();
+    } catch (error) {
+      // Cross-server integration initialization failed - continue without it
+    }
   }
 
   // Wait for server to be ready
@@ -170,6 +224,9 @@ class ConfluenceServer {
           case 'update_confluence_page':
             return await handleUpdateConfluencePage((args as any) || {});
 
+          case 'move_confluence_page':
+            return await handleMoveConfluencePage((args as any) || {});
+
           // Search operation
           case 'search_confluence_pages':
             return await handleSearchConfluencePages((args as any) || {});
@@ -183,6 +240,22 @@ class ConfluenceServer {
 
           case 'remove_confluence_label':
             return await handleRemoveConfluenceLabel((args as any) || {});
+
+          // Cross-server integration tools
+          case 'jira_health_check':
+            return await handleJiraHealthCheck((args as any) || {});
+
+          case 'confluence_health_check':
+            return await handleConfluenceHealthCheck();
+
+          case 'discover_jira_servers':
+            return await handleDiscoverJiraServers((args as any) || {});
+
+          case 'link_confluence_to_jira':
+            return await handleLinkConfluenceToJira((args as any) || {});
+
+          case 'create_confluence_from_jira':
+            return await handleCreateConfluenceFromJira((args as any) || {});
 
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
