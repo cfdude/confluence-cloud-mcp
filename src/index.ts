@@ -28,6 +28,7 @@ import {
   handleFindConfluencePage,
   handleListConfluencePages,
   handleUpdateConfluencePage,
+  handleMoveConfluencePage,
 } from './handlers/page-handlers.js';
 import {
   handleAddConfluenceLabel,
@@ -222,6 +223,9 @@ class ConfluenceServer {
 
           case 'update_confluence_page':
             return await handleUpdateConfluencePage((args as any) || {});
+
+          case 'move_confluence_page':
+            return await handleMoveConfluencePage((args as any) || {});
 
           // Search operation
           case 'search_confluence_pages':

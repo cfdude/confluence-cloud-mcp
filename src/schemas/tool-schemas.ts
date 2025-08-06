@@ -442,4 +442,34 @@ Common uses: categorization, workflow states, team ownership, priority marking. 
       required: ['jiraKey', 'spaceId'],
     },
   },
+
+  // Page movement tool
+  move_confluence_page: {
+    description:
+      'Move a Confluence page to a new location, changing its parent page or moving it to a different space. Automatically updates all internal links and preserves child page hierarchy.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. If not provided, instance will be determined from page context or defaults.',
+        },
+        pageId: {
+          type: 'string',
+          description: 'ID of the page to move',
+        },
+        targetParentId: {
+          type: 'string',
+          description: 'ID of the target parent page where the page will be moved',
+        },
+        position: {
+          type: 'string',
+          enum: ['append', 'before', 'after'],
+          description: 'Position relative to the target parent (default: append)',
+        },
+      },
+      required: ['pageId', 'targetParentId'],
+    },
+  },
 };

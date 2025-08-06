@@ -577,6 +577,50 @@ export class ConfluenceClient {
     }
   }
 
+  // Move page to a new location
+  async moveConfluencePage(
+    pageId: string,
+    targetParentId: string,
+    position: 'append' | 'before' | 'after' = 'append'
+  ): Promise<void> {
+    try {
+      // Use V1 API for move operation as it's the documented approach
+      await this.clientV1.put(`/content/${pageId}/move/${position}/${targetParentId}`, {}, {
+        headers: {
+          'Atl-Confluence-With-Admin-Key': true,
+        },
+      });
+    } catch (error) {
+      if (isAxiosError(error)) {
+        console.error('Error moving page:', error.response?.data);
+        
+        switch (error.response?.status) {
+          case 404:
+            throw new ConfluenceError(
+              `Page ${pageId} or target parent ${targetParentId} not found`,
+              'PAGE_NOT_FOUND'
+            );
+          case 403:
+            throw new ConfluenceError(
+              'Insufficient permissions to move this page',
+              'ACCESS_DENIED'
+            );
+          case 400:
+            throw new ConfluenceError(
+              `Invalid move operation: ${error.response?.data?.message || error.message}`,
+              'INVALID_REQUEST'
+            );
+          default:
+            throw new ConfluenceError(
+              `Failed to move page: ${error.message}`,
+              'MOVE_FAILED'
+            );
+        }
+      }
+      throw error;
+    }
+  }
+
   // Get rate limit information
   getRateLimitInfo(): RateLimitInfo {
     return { ...this.rateLimitInfo };

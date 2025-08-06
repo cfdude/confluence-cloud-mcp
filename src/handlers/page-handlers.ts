@@ -331,3 +331,68 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
     }
   );
 }
+
+interface MovePageArgs extends ToolArgs {
+  pageId: string;
+  targetParentId: string;
+  position?: 'append' | 'before' | 'after';
+}
+
+export async function handleMoveConfluencePage(args: MovePageArgs) {
+  return withConfluenceContext(
+    args,
+    { requiresPage: true },
+    async (toolArgs, { client, instanceName }) => {
+      try {
+        // Get the page info before moving for response details
+        const page = await client.getConfluencePage(toolArgs.pageId);
+        const targetParent = await client.getConfluencePage(toolArgs.targetParentId);
+
+        // Perform the move operation
+        await client.moveConfluencePage(
+          toolArgs.pageId,
+          toolArgs.targetParentId,
+          toolArgs.position || 'append'
+        );
+
+        // Update cache - the page is now under a different parent potentially in a different space
+        await cachePageInstance(page.id, targetParent.spaceId, instanceName);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  instance: instanceName,
+                  message: 'Page moved successfully',
+                  pageId: toolArgs.pageId,
+                  pageTitle: page.title,
+                  targetParentId: toolArgs.targetParentId,
+                  targetParentTitle: targetParent.title,
+                  targetSpaceId: targetParent.spaceId,
+                  position: toolArgs.position || 'append',
+                  url: page._links.webui,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error(
+          'Error moving page:',
+          error instanceof Error ? error.message : String(error)
+        );
+        if (error instanceof McpError) {
+          throw error;
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Failed to move page: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+}
