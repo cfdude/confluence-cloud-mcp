@@ -381,10 +381,7 @@ export async function handleMoveConfluencePage(args: MovePageArgs) {
           ],
         };
       } catch (error) {
-        console.error(
-          'Error moving page:',
-          error instanceof Error ? error.message : String(error)
-        );
+        console.error('Error moving page:', error instanceof Error ? error.message : String(error));
         if (error instanceof McpError) {
           throw error;
         }

@@ -10,8 +10,8 @@ import {
   McpError,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import dotenv from 'dotenv';
 
+import { loadConfiguration } from './config-loader.js';
 import { getCrossServerConfig } from './config.js';
 import {
   handleJiraHealthCheck,
@@ -56,24 +56,9 @@ class ConfluenceServer {
   private async initialize() {
     // Initialize health check manager with cross-server config
     await initializeHealthCheckManager();
-    
+
     // Loading tool schemas
     // Available schemas loaded
-
-    // Convert tool schemas to the format expected by the MCP SDK
-    const tools = Object.entries(toolSchemas).map(([key, schema]) => {
-      // Registering tool
-      const inputSchema = {
-        type: 'object',
-        properties: schema.inputSchema.properties,
-        ...('required' in schema.inputSchema ? { required: schema.inputSchema.required } : {}),
-      };
-      return {
-        name: key,
-        description: schema.description,
-        inputSchema,
-      };
-    });
 
     // Initializing server with tools
 
@@ -81,17 +66,14 @@ class ConfluenceServer {
       {
         name: 'confluence-cloud',
         version: '1.10.1',
-        protocolVersion: '2024-11-05',
         description:
           'Confluence Cloud MCP Server - Provides tools for interacting with multiple Confluence Cloud instances',
       },
       {
         capabilities: {
           tools: {
-            schemas: tools,
           },
           resources: {
-            schemas: [], // Explicitly define empty resources
           },
         },
       }
@@ -281,10 +263,11 @@ class ConfluenceServer {
   }
 }
 
-// Load environment variables before initializing
-dotenv.config();
-
-const server = new ConfluenceServer();
-server.run().catch((_error) => {
-  // Server run failed - exit silently
-});
+// Load configuration (supports OpenCode and traditional formats)
+(async () => {
+  await loadConfiguration();
+  const server = new ConfluenceServer();
+  server.run().catch((_error) => {
+    // Server run failed - exit silently
+  });
+})();

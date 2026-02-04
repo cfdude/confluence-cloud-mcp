@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "confluence-cloud": "./build/index.js"
+    "confluence-cloud": "./build/index.js",
+    "confluence-cloud-mcp": "./build/index.js"
   },
   "files": [
     "build"

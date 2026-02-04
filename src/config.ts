@@ -88,7 +88,10 @@ export async function loadMultiInstanceConfig(): Promise<MultiInstanceConfig> {
     return configCache;
   }
 
-  const configPath = join(homedir(), '.confluence-config.json');
+  // Check for custom config path first (from CONFLUENCE_CONFIG_PATH via config-loader)
+  // then default to ~/.confluence-config.json
+  const configPath =
+    process.env.CONFLUENCE_CONFIG_FILE || join(homedir(), '.confluence-config.json');
 
   try {
     const configData = await readFile(configPath, 'utf-8');

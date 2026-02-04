@@ -304,7 +304,7 @@ export async function initializeHealthCheckManager() {
     // Import getCrossServerConfig here to avoid circular dependencies
     const { getCrossServerConfig } = await import('../config.js');
     const crossServerConfig = await getCrossServerConfig();
-    
+
     healthCheckManager = new HealthCheckManager('1.10.1', crossServerConfig.enabled);
     return healthCheckManager;
   } catch (error) {
