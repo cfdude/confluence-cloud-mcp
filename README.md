@@ -29,6 +29,27 @@ A Model Context Protocol (MCP) server that provides tools for interacting with C
 
 ## Setup
 
+### OpenCode Configuration
+
+This server supports [OpenCode](https://opencode.ai) configuration format. See [OPENCODE.md](OPENCODE.md) for detailed setup instructions.
+
+**Quick example for OpenCode:**
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "confluence-cloud": {
+      "type": "local",
+      "command": ["npx", "confluence-cloud-mcp"],
+      "enabled": true,
+      "environment": {
+        "CONFLUENCE_CONFIG_PATH": "~/.confluence-config.json"
+      }
+    }
+  }
+}
+```
+
 ### Option 1: Using Docker (Recommended)
 
 The easiest way to use this server is with the pre-built Docker image:

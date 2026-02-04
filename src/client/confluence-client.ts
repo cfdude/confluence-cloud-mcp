@@ -477,21 +477,26 @@ export class ConfluenceClient {
 
   // Search operations
   async searchConfluenceContent(
-    query: string,
+    cql: string,
     options: {
       limit?: number;
       start?: number;
+      plainText?: boolean;
     } = {}
   ): Promise<ConfluenceSearchResult> {
     try {
-      console.error('Searching Confluence with CQL:', query);
+      const isPlainText = options.plainText === true;
+      const escapedText = cql.replace(/"/g, '\\"'); // eslint-disable-line no-useless-escape
+      const cqlQuery = isPlainText ? `text ~ "${escapedText}"` : cql;
+
+      console.error('Searching Confluence with CQL:', cqlQuery);
 
       // Use the v1 search endpoint with CQL
       const response = await this.clientV1.get('/search', {
         params: {
-          cql: query.includes('type =') ? query : `text ~ "${query}"`,
-          limit: options.limit || 25,
-          start: options.start || 0,
+          cql: cqlQuery,
+          limit: options.limit ?? 25,
+          start: options.start ?? 0,
           expand: 'content.space,content.version,content.body.view.value',
         },
       });
@@ -512,9 +517,9 @@ export class ConfluenceClient {
           lastModified: result.content.version?.when,
           excerpt: result.excerpt || '',
         })),
-        start: response.data.start || 0,
-        limit: response.data.limit || 25,
-        size: response.data.size || 0,
+        start: response.data.start ?? 0,
+        limit: response.data.limit ?? 25,
+        size: response.data.size ?? 0,
         _links: {
           next: response.data._links?.next,
           self: response.data._links?.self || '',
@@ -593,7 +598,7 @@ export class ConfluenceClient {
     } catch (error) {
       if (isAxiosError(error)) {
         console.error('Error moving page:', error.response?.data);
-        
+
         switch (error.response?.status) {
           case 404:
             throw new ConfluenceError(

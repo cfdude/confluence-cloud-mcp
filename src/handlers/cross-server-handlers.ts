@@ -68,10 +68,7 @@ export async function handleLinkConfluenceToJira(args: LinkToJiraArgs) {
         // Fetch current page to get latest version and content
         const currentPage = await client.getConfluencePage(toolArgs.pageId);
         if (!currentPage) {
-          throw new McpError(
-            ErrorCode.InvalidParams,
-            `Page ${toolArgs.pageId} not found`
-          );
+          throw new McpError(ErrorCode.InvalidParams, `Page ${toolArgs.pageId} not found`);
         }
 
         // Create smart link HTML
