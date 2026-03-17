@@ -553,7 +553,7 @@ export class ConfluenceClient {
     return response.data;
   }
 
-  // Content property operations (used for cross-server metadata)
+  // Content property operations
   async setContentProperty(pageId: string, key: string, value: any): Promise<void> {
     try {
       // Try V2 API first (if available)
