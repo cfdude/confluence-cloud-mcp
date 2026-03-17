@@ -42,5 +42,8 @@ CLAUDE.md
 # Local Docker images
 *.local
 
+# PM2 ecosystem config (contains local paths)
+ecosystem.config.cjs
+
 # Temporary files
 /tmp/confluence-cloud-mcp/

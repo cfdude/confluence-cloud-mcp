@@ -1,0 +1,41 @@
+// PM2 Ecosystem Configuration for Confluence Cloud MCP Server
+// Copy to ecosystem.config.cjs and update paths for your environment.
+module.exports = {
+  apps: [
+    {
+      // Confluence Cloud MCP Server - HTTP transport for shared access
+      name: 'confluence-cloud-mcp-http',
+      script: './build/http-server.js',
+      args: '--port=8106',
+      cwd: '/path/to/confluence-cloud-mcp',  // UPDATE: absolute path
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      interpreter: '/opt/homebrew/bin/node',
+      env: {
+        NODE_ENV: 'production',
+      },
+
+      // Logging
+      log_file: './logs/confluence-mcp-http.log',
+      error_file: './logs/confluence-mcp-http-error.log',
+      out_file: './logs/confluence-mcp-http-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+
+      // Auto-restart
+      autorestart: true,
+      restart_delay: 4000,
+      max_restarts: 10,
+      min_uptime: '10s',
+
+      // Memory limit
+      max_memory_restart: '200M',
+
+      // Process management
+      kill_timeout: 5000,
+      listen_timeout: 8000,
+      exp_backoff_restart_delay: 100,
+    },
+  ],
+};

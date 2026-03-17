@@ -12,20 +12,20 @@ A Model Context Protocol (MCP) server that provides tools for interacting with C
   - Work with multiple Confluence instances
   - Automatic instance routing based on space context
   - Per-instance authentication
+- **Dual Transport**
+  - STDIO for Claude Desktop (spawns its own process)
+  - HTTP via StreamableHTTP for Claude Code / PM2 (shared single instance)
 - Space Management
   - List spaces
   - Get space details
 - Page Operations
-  - Create, read, update pages
+  - Create, read, update, move pages
+  - Find pages by title
   - List pages in a space
   - Convert page content from Confluence storage format to Markdown
 - Search & Labels
   - Search content using CQL
   - Manage page labels
-- **Cross-Server Integration**
-  - Link Confluence pages to Jira issues
-  - Generate Confluence documentation from Jira issues
-  - Health checks and server discovery
 
 ## Setup
 
@@ -120,8 +120,34 @@ npm run build
 ```
 
 4. Run the server:
+
+**STDIO mode** (for Claude Desktop):
 ```bash
 node build/index.js
+```
+
+**HTTP mode** (for Claude Code / shared access via PM2):
+```bash
+node build/http-server.js --port=8106
+# Or via npm:
+npm run start:http
+```
+
+### Option 4: PM2 Deployment (HTTP Transport)
+
+For shared access across multiple Claude Code projects:
+
+```bash
+# Copy and configure the ecosystem template
+cp ecosystem.config.cjs.example ecosystem.config.cjs
+# Edit ecosystem.config.cjs with your local paths
+
+# Start via PM2
+pm2 start ecosystem.config.cjs
+pm2 save
+
+# Add to Claude Code (user scope)
+claude mcp add --scope user confluence-cloud-mcp --transport http --url http://localhost:8106/mcp
 ```
 
 ## Usage
@@ -149,7 +175,7 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 
 > **Note for AI Assistants**: If you're an AI assistant like Cline trying to install this MCP server, please refer to the [llms-install.md](llms-install.md) file for detailed installation instructions.
 
-## Available Tools
+## Available Tools (13)
 
 ### Instance Management
 - `list_confluence_instances`: List all configured Confluence instances
@@ -160,11 +186,13 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 
 ### Page Tools
 - `list_confluence_pages`: List pages in a space
-- `get_confluence_page`: Get a specific page with its content (now includes Markdown conversion)
+- `get_confluence_page`: Get a specific page with its content (includes Markdown conversion)
+- `find_confluence_page`: Find a page by title across spaces
 - `create_confluence_page`: Create a new page in a space
 - `update_confluence_page`: Update an existing page
+- `move_confluence_page`: Move a page to a new parent or space
 
-The `get_confluence_page` tool now automatically converts Confluence storage format content to Markdown, making it easier to work with page content. The conversion handles:
+The `get_confluence_page` tool automatically converts Confluence storage format content to Markdown, making it easier to work with page content. The conversion handles:
 - Headers (h1-h6)
 - Lists (ordered and unordered)
 - Links
@@ -179,24 +207,22 @@ The `get_confluence_page` tool now automatically converts Confluence storage for
 - `add_confluence_label`: Add a label to a page
 - `remove_confluence_label`: Remove a label from a page
 
-### Cross-Server Integration Tools
-- `jira_health_check`: Check connectivity status with Jira MCP servers
-- `confluence_health_check`: Get comprehensive health information for this server
-- `discover_jira_servers`: List available Jira MCP servers for integration
-- `link_confluence_to_jira`: Create smart links from Confluence pages to Jira issues
-- `create_confluence_from_jira`: Generate templated Confluence documentation from Jira issues
-
 > **Note**: All tool names follow the [verb]_confluence_[noun] naming convention for consistency and clarity.
 
 ## Development
 
 This project is written in TypeScript and follows the MCP SDK conventions for implementing server capabilities. The codebase is organized into:
 
+- `src/server.ts` - Shared MCP server factory (used by both STDIO and HTTP entry points)
+- `src/index.ts` - STDIO entry point (for Claude Desktop)
+- `src/http-server.ts` - HTTP entry point with StreamableHTTP transport (for PM2/Claude Code)
+- `src/config.ts` - Multi-instance configuration loader
+- `src/config-loader.ts` - Environment/OpenCode configuration support
 - `src/client/` - Confluence API client implementation
-- `src/handlers/` - MCP tool request handlers
+- `src/handlers/` - MCP tool request handlers (pages, spaces, search/labels, instances)
 - `src/schemas/` - JSON schemas for tool inputs
 - `src/types/` - TypeScript type definitions
-- `src/utils/` - Utility functions including content format conversion
+- `src/utils/` - Utility functions (content conversion, instance caching, API helpers, tool wrapper)
 
 ### CI/CD Pipeline
 
