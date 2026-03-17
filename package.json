@@ -23,6 +23,7 @@
     "quality:check": "npm run format:check && npm run lint && npm run build",
     "quality:fix": "npm run format && npm run lint:fix && npm run build",
     "quality:full": "npm run format && npm run lint:fix && npm run build && npm test",
+    "start:http": "node build/http-server.js",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js"
   },
@@ -32,9 +33,11 @@
     "@atlaskit/editor-json-transformer": "^8.21.1",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "axios": "^1.13.5",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
