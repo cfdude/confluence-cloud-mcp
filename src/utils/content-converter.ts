@@ -106,11 +106,19 @@ export function convertStorageToMarkdown(storageFormat: string): string {
       .replace(/&gt;/g, '>')
       .replace(/&amp;/g, '&')
       .replace(/\n\s+\n/g, '\n\n') // Remove lines with only whitespace
-      .replace(/([^\n])\n([^\n])/g, '$1 $2') // Join lines unless there's a blank line
-      .replace(/<[^>]+>/g, '') // Remove any remaining HTML tags
-      .trim();
+      .replace(/([^\n])\n([^\n])/g, '$1 $2'); // Join lines unless there's a blank line
 
-    return markdown;
+    // Strip remaining HTML tags in a loop to handle nested/malformed tags like <scr<script>ipt>
+    let cleaned = markdown;
+    let previous: string;
+    do {
+      previous = cleaned;
+      cleaned = cleaned.replace(/<[^>]+>/g, '');
+    } while (cleaned !== previous);
+
+    cleaned = cleaned.trim();
+
+    return cleaned;
   } catch (error) {
     console.error('Error converting content:', error);
     throw new Error('Failed to convert content to markdown');

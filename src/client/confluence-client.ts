@@ -486,7 +486,7 @@ export class ConfluenceClient {
   ): Promise<ConfluenceSearchResult> {
     try {
       const isPlainText = options.plainText === true;
-      const escapedText = cql.replace(/"/g, '\\"'); // eslint-disable-line no-useless-escape
+      const escapedText = cql.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       const cqlQuery = isPlainText ? `text ~ "${escapedText}"` : cql;
 
       console.error('Searching Confluence with CQL:', cqlQuery);
