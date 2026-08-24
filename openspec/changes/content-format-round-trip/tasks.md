@@ -1,0 +1,70 @@
+## 1. Test harness and real-world fixtures
+
+Fixtures gate everything else (design.md — Migration Plan step 1). Without them the converter
+rewrite has no regression net.
+
+- [ ] 1.1 Confirm the Jest harness runs the existing suite from a clean checkout and verify `npm test` passes and reports the one existing test file
+- [ ] 1.2 Add a fixture-capture script that fetches a page's raw `body-format=storage` from a configured instance and writes it to `__tests__/fixtures/`, and verify it captures a known page byte-for-byte identical to the API response
+- [ ] 1.3 Capture storage fixtures covering ordered lists, nested lists, tables, structured macros, layouts, mixed macro-inside-list, and a plain page, and verify each fixture file is non-empty and well-formed
+- [ ] 1.4 Add a fixture asserting the exact reported defect — an ordered list whose conversion currently yields `1. $1` — and verify it FAILS against the current converter, proving the fixture detects the bug
+
+## 2. Tokenizer
+
+- [ ] 2.1 Evaluate `parse5` against the macro and layout fixtures for namespaced-element fidelity and source-offset accuracy, and verify a spike round-trips each fixture's raw text from reported offsets with zero byte differences (design.md — D2, Open Questions)
+- [ ] 2.2 Adopt `parse5` or the hand-rolled fallback based on 2.1, add the dependency, and verify `npm ls` shows no new transitive advisories via `npm audit`
+- [ ] 2.3 Implement the shared tokenizer emitting element/text/comment tokens with source offsets, and verify unit tests cover unknown elements, `ac:`/`ri:` namespaced elements, self-closing tags, and malformed markup without throwing
+- [ ] 2.4 Implement construct inventory (macros, layouts, other namespaced elements) over the token stream and verify it reports the expected constructs for each fixture
+
+## 3. Converter rewrite (capability: content-conversion)
+
+- [ ] 3.1 Implement ordered-list conversion over the token stream and verify the 1.4 fixture now passes with item text intact, sequential numbering, and no `$1` token anywhere in the output
+- [ ] 3.2 Implement unordered and nested list conversion and verify fixtures assert one item per line and correct relative indentation for nesting
+- [ ] 3.3 Remove the global line-joining rule and implement structure-aware whitespace handling, verifying that no fixture's list items are joined onto one line
+- [ ] 3.4 Implement heading, paragraph, inline-emphasis, link, code, and table conversion and verify every table cell's text appears in the converted output for the table fixture
+- [ ] 3.5 Implement text retention for unrecognized elements and verify a fixture containing an unmodelled element keeps that element's text
+- [ ] 3.6 Return the lossy indicator and construct inventory from the conversion and verify macro and layout fixtures report lossy while the plain fixture reports faithful
+- [ ] 3.7 Replace silent-failure behavior with a raised error carrying the cause, and verify no partially converted result is ever returned as a success
+- [ ] 3.8 Run every fixture through the new converter and verify no output contains a `$1` token and no fixture loses text present in its source
+
+## 4. Retrieval (capability: page-content-retrieval)
+
+- [ ] 4.1 Add the `format` parameter (`markdown` | `storage` | `both`, default `both`) to the get-page tool schema and handler, and verify each value returns exactly the documented fields
+- [ ] 4.2 Stop discarding raw storage in the get-page handler and verify the returned storage is byte-for-byte identical to the Confluence response for the macro fixture
+- [ ] 4.3 Reject an invalid `format` value with an error naming the accepted values, and verify no page content is returned in that case
+- [ ] 4.4 Include the current version in every retrieval response and verify it matches the version reported by the API
+- [ ] 4.5 Surface the lossy indicator on retrieval and verify a macro-bearing page is flagged while a plain page is not
+- [ ] 4.6 Return the heading outline with levels and occurrence indices, and verify duplicate headings are listed separately with distinguishing indices
+- [ ] 4.7 Verify the markdown remains under a stable response key so a caller reading only markdown is unaffected (design.md — D7)
+
+## 5. Write safety (capability: page-write-safety)
+
+- [ ] 5.1 Make `title` optional in the update tool schema and preserve the current title server-side when omitted, verifying an update without a title leaves the title unchanged and the content updated
+- [ ] 5.2 Resolve the write version server-side as current + 1 and verify a page at version 7 is written as version 8 without the caller supplying a version
+- [ ] 5.3 Add optional `expectedVersion` conflict detection and verify a stale value fails reporting both expected and current version, leaving the page unmodified
+- [ ] 5.4 Implement well-formedness validation of submitted content and verify malformed input is rejected locally with no modifying request sent
+- [ ] 5.5 Implement conversion-artifact detection rejecting list items whose entire text is `$1`, and verify `$1.2M`, `$1K`, and `$1::vector` in legitimate content are NOT rejected (design.md — D6)
+- [ ] 5.6 Implement construct-loss detection comparing current-page and submitted inventories, and verify a submission dropping a macro is rejected naming that macro
+- [ ] 5.7 Add the explicit confirmation flag permitting intentional construct removal and verify the write proceeds when it is set
+- [ ] 5.8 Verify every rejected write path sends no modifying request to Confluence and returns an error stating the corrective action
+
+## 6. Section editing (capability: page-section-editing)
+
+- [ ] 6.1 Implement section resolution over the token stream returning heading level, text, and start/end offsets, and verify boundaries land at the next same-or-higher-level heading and at end-of-page for a final section
+- [ ] 6.2 Verify subsections are included in a parent section's extent using a fixture with a level-3 heading inside a level-2 section
+- [ ] 6.3 Reject ambiguous heading matches without an occurrence index, reporting the match count, and verify the page is not modified
+- [ ] 6.4 Support an occurrence index to disambiguate duplicate headings and verify the correct occurrence is selected
+- [ ] 6.5 Reject a missing heading with an error listing the headings that do exist, and verify the page is not modified
+- [ ] 6.6 Implement the offset-based string splice and verify that after replacing a section on a macro-heavy fixture, the regions before and after are byte-for-byte identical strings (design.md — D3)
+- [ ] 6.7 Implement replace-section, append-to-section, and insert-section-after operations and verify each against fixtures for correct placement and heading retention
+- [ ] 6.8 Validate submitted section content as well-formed storage before writing and verify malformed content is rejected with no request made
+- [ ] 6.9 Add the section-edit tool schemas and handlers wired to the shared write-safety contract, and verify title preservation and conflict detection apply to section edits
+- [ ] 6.10 Verify unknown third-party markup outside the edited section is preserved byte-for-byte using a fixture containing markup the server does not model
+
+## 7. Integration and verification
+
+- [ ] 7.1 Add an end-to-end test covering read-with-storage → section-edit → read-back against fixtures, verifying macros elsewhere on the page are unchanged
+- [ ] 7.2 Add an end-to-end test proving the corruption path is closed: attempt to write back content bearing the `$1` list-item signature and verify it is rejected
+- [ ] 7.3 Run `npm run lint` and `npm run build` and verify both pass with no errors
+- [ ] 7.4 Run the full test suite and verify every test passes, including the pre-existing search test
+- [ ] 7.5 Exercise the changed tools against the live `onvex` instance in the `APA` space using `TEST:`-prefixed pages, verify create/read/section-edit/whole-page-update behave per spec, and delete the test pages afterward
+- [ ] 7.6 Re-run the corruption scan against both configured sites and verify no new `N. $1` occurrences were introduced by this work
