@@ -106,18 +106,88 @@ layouts present in the current version, unless the caller explicitly confirms th
 
 The server SHALL reject submitted content containing markdown-conversion artifacts that
 indicate the caller is writing back a corrupted read, so such content cannot reach Confluence.
+Detection SHALL cover the artifact both as element content and as bare text, because the
+observed corruption on live pages appears as unwrapped text rather than as list elements.
 
-#### Scenario: Content containing placeholder list items is rejected
+#### Scenario: Bare textual placeholder sequence is rejected
 
-- **WHEN** submitted content contains list items whose entire text is the token `$1`
-- **THEN** the write is rejected identifying the affected items
+- **WHEN** submitted content contains the text sequence `1. $1` followed by `2. $1` outside a
+  code block
+- **THEN** the write is rejected identifying the affected text
 - **AND** the page is not modified
 
-#### Scenario: Legitimate content resembling an artifact is accepted
+#### Scenario: Placeholder list element is rejected
 
-- **WHEN** submitted content contains a dollar amount such as `$1.2M` or a parameter
-  placeholder such as `$1::vector` within a code block
+- **WHEN** submitted content contains a list item whose entire text is the token `$1`
+- **THEN** the write is rejected identifying the affected item
+- **AND** the page is not modified
+
+#### Scenario: Dollar amounts are accepted
+
+- **WHEN** submitted content contains a dollar amount such as `$1.2M`, `$1K`, or `$1,505,674`
 - **THEN** the write is not rejected on that basis
+
+#### Scenario: Parameter placeholders in code are accepted
+
+- **WHEN** submitted content contains a parameter placeholder such as `$1::vector` within a
+  code block or preformatted region
+- **THEN** the write is not rejected on that basis
+
+### Requirement: Markdown submitted as storage format is rejected
+
+Storage format is XHTML; markdown syntax placed in it renders as literal characters rather
+than as formatting. The server SHALL reject submitted content that carries markdown structural
+syntax outside code and preformatted regions, and the error SHALL tell the caller to supply
+storage format and how to obtain it.
+
+#### Scenario: Markdown heading is rejected
+
+- **WHEN** submitted content contains a line beginning with `#` followed by a space, outside a
+  code or preformatted region
+- **THEN** the write is rejected reporting that the content appears to be markdown
+- **AND** the error states that storage format is required
+- **AND** the page is not modified
+
+#### Scenario: Markdown bullet is rejected
+
+- **WHEN** submitted content contains a line beginning with `-` or `*` followed by a space,
+  outside a code or preformatted region
+- **THEN** the write is rejected reporting that the content appears to be markdown
+- **AND** the page is not modified
+
+#### Scenario: Markdown emphasis is rejected
+
+- **WHEN** submitted content contains `**` delimited emphasis outside a code or preformatted
+  region
+- **THEN** the write is rejected reporting that the content appears to be markdown
+
+#### Scenario: Markdown fenced code block is rejected
+
+- **WHEN** submitted content contains a triple-backtick fence outside a preformatted region
+- **THEN** the write is rejected reporting that the content appears to be markdown
+
+#### Scenario: Error explains how to obtain storage format
+
+- **WHEN** a write is rejected as markdown
+- **THEN** the error directs the caller to retrieve the page with the storage representation
+  and author against that
+
+#### Scenario: Markdown syntax inside a code block is accepted
+
+- **WHEN** submitted content contains markdown syntax inside a code or preformatted region
+- **THEN** the write is not rejected on that basis
+
+#### Scenario: Hyphen in ordinary prose is accepted
+
+- **WHEN** submitted content contains a hyphen or asterisk that is not at the start of a line
+  followed by a space
+- **THEN** the write is not rejected on that basis
+
+#### Scenario: Valid storage content is accepted
+
+- **WHEN** submitted content uses storage format elements such as `<h2>`, `<ul><li>`, and
+  `<strong>` and contains no markdown structural syntax
+- **THEN** the check passes and the write proceeds
 
 ### Requirement: Submitted content must be well-formed storage format
 

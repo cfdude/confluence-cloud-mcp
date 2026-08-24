@@ -56,6 +56,22 @@ supplied. It SHALL NOT be reformatted, re-indented, entity-normalized, or otherw
 - **WHEN** a page containing a structured macro is retrieved with `format` set to `storage`
 - **THEN** the macro's markup and all of its parameters are present unchanged in the result
 
+### Requirement: Markdown is returned under a stable key
+
+The markdown rendering SHALL be returned under the response key `content`, unchanged from the
+key used before this capability existed, so that a caller reading only markdown continues to
+work without modification.
+
+#### Scenario: Existing markdown consumer is unaffected
+
+- **WHEN** a page is retrieved without a `format` parameter
+- **THEN** the markdown rendering is present under the key `content`
+
+#### Scenario: Storage is returned under its own key
+
+- **WHEN** a page is retrieved with storage included
+- **THEN** the raw storage is returned under a key distinct from `content`
+
 ### Requirement: Retrieval reports the version needed to write
 
 Every page retrieval SHALL return the page's current version number, so that a caller can

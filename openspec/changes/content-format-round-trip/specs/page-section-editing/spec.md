@@ -136,3 +136,28 @@ detection guarantees that govern whole-page writes.
 - **WHEN** a section edit supplies an expected version and the page has since been modified
 - **THEN** the edit fails reporting the conflict
 - **AND** the page is not modified
+
+#### Scenario: Section edit rejects markdown supplied as storage
+
+- **WHEN** a section edit supplies content carrying markdown structural syntax outside a code
+  region
+- **THEN** the edit is rejected reporting that the content appears to be markdown
+- **AND** the page is not modified
+
+### Requirement: Section edits require an expected version
+
+Because a section edit necessarily follows a read of the page, the caller already holds the
+version. Section editing SHALL require `expectedVersion` and SHALL fail when it is absent, so
+that splicing into content that has since changed is impossible.
+
+#### Scenario: Missing expected version is rejected
+
+- **WHEN** a section edit is requested without an expected version
+- **THEN** an error is returned stating that an expected version is required
+- **AND** the page is not modified
+
+#### Scenario: Stale expected version is rejected before splicing
+
+- **WHEN** a section edit supplies an expected version that no longer matches the page
+- **THEN** the edit fails reporting both the expected and current version
+- **AND** no splice is attempted and the page is not modified

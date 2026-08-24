@@ -4,8 +4,8 @@ Fixtures gate everything else (design.md — Migration Plan step 1). Without the
 rewrite has no regression net.
 
 - [ ] 1.1 Confirm the Jest harness runs the existing suite from a clean checkout and verify `npm test` passes and reports the one existing test file
-- [ ] 1.2 Add a fixture-capture script that fetches a page's raw `body-format=storage` from a configured instance and writes it to `__tests__/fixtures/`, and verify it captures a known page byte-for-byte identical to the API response
-- [ ] 1.3 Capture storage fixtures covering ordered lists, nested lists, tables, structured macros, layouts, mixed macro-inside-list, and a plain page, and verify each fixture file is non-empty and well-formed
+- [ ] 1.2 Add a fixture-capture script restricted to the `onvex` site ONLY — never `listreports`/Highway — that fetches raw `body-format=storage` and writes to `__tests__/fixtures/`, and verify it refuses to run against any other configured site (this repository is public; see design.md — Risks)
+- [ ] 1.3 Capture storage fixtures covering ordered lists, nested lists, tables, structured macros, layouts, mixed macro-inside-list, and a plain page; sanitize all captured prose, names, figures, and URLs to synthetic equivalents while preserving markup structure verbatim; verify each fixture is non-empty, well-formed, and contains no real page text
 - [ ] 1.4 Add a fixture asserting the exact reported defect — an ordered list whose conversion currently yields `1. $1` — and verify it FAILS against the current converter, proving the fixture detects the bug
 
 ## 2. Tokenizer
@@ -42,10 +42,13 @@ rewrite has no regression net.
 - [ ] 5.2 Resolve the write version server-side as current + 1 and verify a page at version 7 is written as version 8 without the caller supplying a version
 - [ ] 5.3 Add optional `expectedVersion` conflict detection and verify a stale value fails reporting both expected and current version, leaving the page unmodified
 - [ ] 5.4 Implement well-formedness validation of submitted content and verify malformed input is rejected locally with no modifying request sent
-- [ ] 5.5 Implement conversion-artifact detection rejecting list items whose entire text is `$1`, and verify `$1.2M`, `$1K`, and `$1::vector` in legitimate content are NOT rejected (design.md — D6)
-- [ ] 5.6 Implement construct-loss detection comparing current-page and submitted inventories, and verify a submission dropping a macro is rejected naming that macro
-- [ ] 5.7 Add the explicit confirmation flag permitting intentional construct removal and verify the write proceeds when it is set
-- [ ] 5.8 Verify every rejected write path sends no modifying request to Confluence and returns an error stating the corrective action
+- [ ] 5.5 Implement markdown-as-storage detection for line-initial `#`, line-initial `-`/`*` followed by a space, `**` emphasis, and triple-backtick fences, evaluated outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA; verify each pattern is rejected and that the same syntax inside a code block is accepted (design.md — D8)
+- [ ] 5.6 Verify the markdown rejection error names the problem and directs the caller to retrieve with `format: 'storage'` and author against that
+- [ ] 5.7 Validate the markdown detector against the real corpus: run it over captured storage from both configured sites read-only, and verify it flags the pages the corruption scan already identified without flagging pages whose only matches are inside code blocks
+- [ ] 5.8 Implement conversion-artifact detection covering BOTH the bare-text signature `/[0-9]+\.\s*\$1(?![0-9])/` and a list item whose entire text is `$1`, and verify `$1.2M`, `$1K`, `$1,505,674`, and `$1::vector` are NOT rejected (design.md — D6; the one live corrupted page carries the artifact as bare text with no list markup)
+- [ ] 5.9 Implement construct-loss detection comparing current-page and submitted inventories, and verify a submission dropping a macro is rejected naming that macro
+- [ ] 5.10 Add the explicit confirmation flag permitting intentional construct removal and verify the write proceeds when it is set
+- [ ] 5.11 Verify every rejected write path sends no modifying request to Confluence and returns an error stating the corrective action
 
 ## 6. Section editing (capability: page-section-editing)
 
@@ -57,13 +60,15 @@ rewrite has no regression net.
 - [ ] 6.6 Implement the offset-based string splice and verify that after replacing a section on a macro-heavy fixture, the regions before and after are byte-for-byte identical strings (design.md — D3)
 - [ ] 6.7 Implement replace-section, append-to-section, and insert-section-after operations and verify each against fixtures for correct placement and heading retention
 - [ ] 6.8 Validate submitted section content as well-formed storage before writing and verify malformed content is rejected with no request made
-- [ ] 6.9 Add the section-edit tool schemas and handlers wired to the shared write-safety contract, and verify title preservation and conflict detection apply to section edits
-- [ ] 6.10 Verify unknown third-party markup outside the edited section is preserved byte-for-byte using a fixture containing markup the server does not model
+- [ ] 6.9 Make `expectedVersion` REQUIRED on section edits and verify a request omitting it is rejected and one with a stale value fails before any splice is attempted (design.md — D9)
+- [ ] 6.10 Add the section-edit tool schemas and handlers wired to the shared write-safety contract, and verify title preservation, markdown-as-storage rejection, and conflict detection all apply to section edits
+- [ ] 6.11 Verify unknown third-party markup outside the edited section is preserved byte-for-byte using a fixture containing markup the server does not model
 
 ## 7. Integration and verification
 
 - [ ] 7.1 Add an end-to-end test covering read-with-storage → section-edit → read-back against fixtures, verifying macros elsewhere on the page are unchanged
-- [ ] 7.2 Add an end-to-end test proving the corruption path is closed: attempt to write back content bearing the `$1` list-item signature and verify it is rejected
+- [ ] 7.2 Add an end-to-end test proving the corruption path is closed: attempt to write back content bearing the bare-text `$1` signature and verify it is rejected
+- [ ] 7.2a Add an end-to-end test proving the dominant failure mode is closed: attempt to write markdown into the storage field and verify it is rejected with the corrective message
 - [ ] 7.3 Run `npm run lint` and `npm run build` and verify both pass with no errors
 - [ ] 7.4 Run the full test suite and verify every test passes, including the pre-existing search test
 - [ ] 7.5 Exercise the changed tools against the live `onvex` instance in the `APA` space using `TEST:`-prefixed pages, verify create/read/section-edit/whole-page-update behave per spec, and delete the test pages afterward

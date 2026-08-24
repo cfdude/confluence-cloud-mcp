@@ -136,17 +136,72 @@ author's change.
 Whole-page writes are the escape hatch, so they get the checks section edits get for free:
 
 1. **Well-formedness** — submitted content tokenizes cleanly.
-2. **Conversion-artifact detection** — reject list items whose *entire* text content is the
-   token `$1`. Structural, not a substring search: the live-data scan found `$1.2M`, `$1K`,
-   and `$1::vector` in legitimate page content, and a naive `includes('$1')` would reject all
-   of them. The corruption signature is a list item that contains nothing else.
-3. **Construct-loss detection** — inventory macros and layouts in the current page and in the
+2. **Markdown-as-storage detection** — see D8. Empirically the highest-value check.
+3. **Conversion-artifact detection** — reject the `$1` corruption signature. Detection must
+   cover **bare text**, not only `<li>` elements: on the one live page carrying the corruption,
+   the storage body contains the literal text `1. $1  2. $1  3. $1  4. $1` with no list markup
+   at all, because the agent pasted converted markdown straight into the storage field. A
+   detector written only against `<li>` content would find nothing there.
+   It must also stay structural rather than a substring search — the live scan found `$1.2M`,
+   `$1K`, `$1,505,674`, and `$1::vector` in legitimate content, and a naive `includes('$1')`
+   rejects all of them. The canonical signature is the scan regex `/[0-9]+\.\s*\$1(?![0-9])/`,
+   which already discriminates correctly, plus the `<li>` whose entire text is `$1`.
+4. **Construct-loss detection** — inventory macros and layouts in the current page and in the
    submission; if the submission drops any, reject and name them, unless the caller passes an
    explicit confirmation flag.
 
-Check 3 is what actually stops the reported failure mode for whole-page writes: an agent that
-read markdown, lost the macros to the renderer, and submitted the result gets a specific,
-actionable error instead of a silently gutted page.
+Check 4 is what stops macro loss on whole-page writes: an agent that read markdown, lost the
+macros to the renderer, and submitted the result gets a specific, actionable error instead of
+a silently gutted page.
+
+### D8 — Reject markdown submitted as storage format
+
+Measured on live data, this is the **most prevalent failure mode by a wide margin** and the
+likeliest primary cause of "agents mess up the entire style and syntax of the page":
+
+| Signal (code/preformatted regions excluded) | onvex, 340 pages | Highway, 3,602 pages |
+|---|---|---|
+| Markdown headings in storage | 6 | 12 |
+| Markdown bullets in storage | 101 | 276 |
+| Markdown bold in storage | 5 | 14 |
+| **Any markdown-in-storage** | **102 (30.0%)** | **278 (7.7%)** |
+| `N. $1` corruption | 1 | 1 |
+
+Confirmed by inspection, not just pattern count — live pages contain
+`## 🎯 Executive Summary` and `* **vs. LinkedIn/Indeed:** …` sitting in the storage field,
+where Confluence renders the `##` and `*` as literal characters.
+
+Markdown-in-storage is roughly two orders of magnitude more common than the `$1` bug. It
+therefore gets its own preflight check rather than being folded into artifact detection.
+
+Critically, **well-formedness validation cannot catch this**: `### Heading` and `- bullet` are
+perfectly valid XHTML text nodes. It needs a distinct check for markdown structural syntax —
+line-initial `#`, line-initial `-`/`*` followed by a space, `**` emphasis, and triple-backtick
+fences — evaluated only outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA, since
+markdown inside a code block is legitimate content.
+
+The rejection message is the important half. It must name the problem and the remedy —
+"content appears to be markdown; supply Confluence storage format, or retrieve the page with
+`format: 'storage'` to see what to author against" — because the error is the only channel
+that reliably redirects an agent mid-task.
+
+*Alternative considered:* silently converting submitted markdown to storage. Rejected — it
+guesses at intent, cannot represent macros, and would quietly re-establish the lossy
+markdown→storage path this change exists to eliminate. Rejecting with instructions keeps the
+agent authoring the format the API actually stores.
+
+*False-positive risk:* a page legitimately about markdown, discussing `- bullets` in prose
+outside a code block. Accepted, and mitigated by the explicit-confirmation flag that already
+exists for construct removal; the check is worth a rare false positive given the measured
+30% corruption rate.
+
+### D9 — Section edits require `expectedVersion`
+
+D5 leaves `expectedVersion` optional for whole-page writes, which makes the default
+last-write-wins. Section edits are different: the caller has necessarily just read the page in
+order to name a section, so it already holds the version, and splicing into content that has
+since changed can land an edit in the wrong place entirely. `expectedVersion` is therefore
+**required** on the section-edit tools and optional on whole-page writes.
 
 *Alternative considered:* making these warnings rather than errors. Rejected — agents
 demonstrably act on returned content and not on advisory prose; the reported behavior is
@@ -156,10 +211,14 @@ reliably changes what the agent does next.
 
 ### D7 — Retrieval response shape
 
-`format` defaults to `'both'`, so the default response carries `markdown`, `storage`, `version`,
-a `lossy` indicator, and the heading outline. This is an additive shape change to a response
-that is already a JSON envelope; the markdown remains present under a stable key so a caller
-reading only markdown continues to work.
+`format` defaults to `'both'`, so the default response carries the markdown, the raw storage,
+`version`, a `lossy` indicator, and the heading outline. This is an additive shape change to a
+response that is already a JSON envelope.
+
+The markdown stays under the existing key **`content`** — the key the handler uses today — so
+a caller reading only markdown is unaffected. Raw storage is returned under a separate key
+(`storage`). Naming the key here rather than leaving it to implementation makes the
+compatibility guarantee checkable.
 
 Returning both by default is the deliberate choice: it means an agent that does not know about
 `format` still has the storage it needs to write back correctly, which is the failing case
@@ -184,6 +243,15 @@ today.
 - **Rewriting the converter with almost no existing tests is where regressions hide** → The
   fixtures are built first and are a gating deliverable, not a trailing task. This is the
   reason for the task ordering rather than a general preference for TDD.
+- **Fixtures captured from a live site would publish real page content** → This repository is
+  **public**. Fixtures are captured from the `onvex` site only, never from `listreports`
+  (Highway work product), and captured text is sanitized — real prose, names, figures, and
+  URLs replaced with synthetic equivalents — while structural markup, macros, and layouts are
+  preserved verbatim, since structure is the only thing the fixtures test. Where a shape can
+  be hand-authored instead of captured, hand-author it.
+- **The markdown-as-storage check could reject a page legitimately documenting markdown** →
+  Accepted; see D8. Code and preformatted regions are excluded, and the confirmation flag
+  provides an override.
 - **`parse5` is HTML5-oriented and storage format is XHTML-like** → Evaluate against real
   macro- and layout-bearing fixtures captured from a live instance before committing to it;
   the fallback is scoped in the tasks.

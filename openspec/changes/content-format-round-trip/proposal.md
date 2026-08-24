@@ -52,6 +52,13 @@ converter becomes.
 - **Whole-page writes remain supported and are hardened.** They stay the escape hatch for
   cases section-scoping cannot express, with preflight checks that catch the destructive
   submissions agents actually make.
+- **Reject markdown submitted as storage format.** Measured on the same corpus, this is the
+  most prevalent failure mode by roughly two orders of magnitude: 30.0% of onvex pages and
+  7.7% of Highway pages contain markdown syntax sitting in the storage field, where Confluence
+  renders it as literal `##` and `*` characters. Live examples include
+  `## 🎯 Executive Summary` and `* **vs. LinkedIn/Indeed:** …`. Well-formedness checking
+  cannot catch this — `### Heading` is a perfectly valid XHTML text node — so it needs its own
+  check, with an error that tells the agent to author storage format and how to obtain it.
 - **BREAKING (permissive direction): `title` becomes optional on `update_confluence_page`.**
   It is required today, so an agent editing only body content must restate the title and a
   paraphrase silently renames the page. When omitted, the current title is preserved
