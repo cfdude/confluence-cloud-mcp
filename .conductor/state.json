@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "active": "content-format-round-trip",
+  "epics": [
+    {
+      "id": "content-format-round-trip",
+      "title": "Fix content round-trip: $1 converter bug, dual-format reads, safe section-scoped + whole-page writes",
+      "priority": "P0",
+      "status": "active",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [],
+      "reconcileNeeded": false,
+      "startedAt": "2026-08-24T22:29:36.636Z"
+    },
+    {
+      "id": "content-validator",
+      "title": "Pre-submit content validator with actionable error feedback",
+      "priority": "P1",
+      "status": "queued",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "content-format-round-trip"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "tool-doc-overhaul",
+      "title": "Rewrite tool descriptions so agents know exactly what format to supply",
+      "priority": "P1",
+      "status": "queued",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "content-format-round-trip"
+        }
+      ],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "deps-security-sweep",
+      "title": "Drop unused ADF/@atlaskit deps, clear npm advisories and code-scanning alerts",
+      "priority": "P1",
+      "status": "queued",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "repo-maintainer-cleanup",
+      "title": "Become sole maintainer: drop dead upstream, fix fork framing, repo presentation",
+      "priority": "P2",
+      "status": "queued",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "test-coverage-baseline",
+      "title": "Establish real test harness beyond the single existing test file",
+      "priority": "P2",
+      "status": "queued",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [],
+      "reconcileNeeded": false
+    },
+    {
+      "id": "repair-corrupted-pages",
+      "title": "Restore 27 list items destroyed by the $1 bug on 2 live pages from version history",
+      "priority": "P2",
+      "status": "planned",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "content-format-round-trip"
+        }
+      ],
+      "reconcileNeeded": false
+    }
+  ],
+  "detourStack": [],
+  "revision": 8,
+  "pmVersion": "0.26.0",
+  "platform": "claude-code"
+}

@@ -47,3 +47,5 @@ ecosystem.config.cjs
 
 # Temporary files
 /tmp/confluence-cloud-mcp/
+.conductor/detours.log
+.conductor/write-conflicts.log
