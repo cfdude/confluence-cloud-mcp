@@ -12,6 +12,8 @@ import {
   blockingAncestorsOf,
   containerKind,
   isAddressable,
+  isWellFormed,
+  wellFormednessErrors,
   nearestContainerOf,
   tokenize,
   type StorageElement,
@@ -378,5 +380,64 @@ describe('storage tokenizer -- ancestry and sectioning containers', () => {
       expect(element.start).toBeGreaterThanOrEqual(container.contentStart);
       expect(element.end).toBeLessThanOrEqual(container.contentEnd);
     }
+  });
+});
+
+describe('storage tokenizer -- well-formedness predicate', () => {
+  it.each(fixtures)('%s is well-formed', (file) => {
+    expect(isWellFormed(tokenize(loadFixture(file)))).toBe(true);
+  });
+
+  it('does NOT treat a bare less-than in prose as malformed', () => {
+    const result = tokenize('<p>3 < 4 &amp; 5 > 2</p>');
+    expect(result.notices.map((n) => n.code)).toEqual(['stray-less-than']);
+    expect(wellFormednessErrors(result)).toEqual([]);
+    expect(isWellFormed(result)).toBe(true);
+  });
+
+  it.each([
+    ['unclosed element', '<ac:rich-text-body><p>never closed'],
+    ['stray close tag', '<p>a</p></div>'],
+    ['implicit close', '<ac:layout-cell><p>a<em>b</ac:layout-cell>'],
+    ['unterminated tag', '<p>text<ac:structured-macro ac:name="x"'],
+    ['unterminated comment', '<p>a</p><!-- never ends'],
+    ['unterminated cdata', '<ac:plain-text-body><![CDATA[ unfinished'],
+  ])('%s is malformed', (_label, source) => {
+    const result = tokenize(source);
+    expect(isWellFormed(result)).toBe(false);
+    expect(wellFormednessErrors(result).length).toBeGreaterThan(0);
+  });
+});
+
+describe('storage tokenizer -- addressability is D3 taken literally', () => {
+  // Pinned deliberately: a transparent ancestor blocks addressability. Relaxing this is a
+  // section-6 decision that needs its own fixture, not an accident.
+  it('does not treat a heading inside a plain <div> as addressable', () => {
+    const result = tokenize('<div><h2>A</h2><p>x</p></div><h2>B</h2>');
+    const [inDiv, atRoot] = headings(result);
+    expect(containerKind('div')).toBe('transparent');
+    expect(nearestContainerOf(result, inDiv.index).kind).toBe('root');
+    expect(isAddressable(result, inDiv.index)).toBe(false);
+    expect(blockingAncestorsOf(result, inDiv.index).map((e) => e.name)).toEqual(['div']);
+    expect(isAddressable(result, atRoot.index)).toBe(true);
+  });
+
+  it('does not treat a heading inside a <blockquote> as addressable', () => {
+    const result = tokenize('<blockquote><h3>Quoted</h3></blockquote>');
+    expect(isAddressable(result, headings(result)[0].index)).toBe(false);
+  });
+
+  it('keeps a heading nested in layout containers addressable at any depth', () => {
+    const result = tokenize(
+      '<ac:layout><ac:layout-section ac:type="single"><ac:layout-cell><h2>A</h2>' +
+        '</ac:layout-cell></ac:layout-section></ac:layout>'
+    );
+    const heading = headings(result)[0];
+    expect(ancestorsOf(result, heading.index).map((e) => e.name)).toEqual([
+      'ac:layout',
+      'ac:layout-section',
+      'ac:layout-cell',
+    ]);
+    expect(isAddressable(result, heading.index)).toBe(true);
   });
 });

@@ -662,6 +662,14 @@ export function nearestContainerOfToken(result: TokenizeResult, tokenIndex: numb
  * D3 states the rule positively -- "addressable only if every ancestor between it and the
  * document root is a sectioning container" -- so this returns the ancestors that violate it,
  * which is what a not-found error needs in order to explain itself.
+ *
+ * Taken LITERALLY, and deliberately: a transparent ancestor blocks addressability too, so a
+ * heading inside a plain `<div>` or `<blockquote>` is not addressable even though `div` is
+ * neither a sectioning container nor an opaque region. That is the safe reading -- a section
+ * body starting inside a `<div>` and ending at the next root-level heading would splice
+ * across `</div>` and orphan it, which is the same defect the opaque-region rule prevents.
+ * Section 6 can relax this by filtering on `containerKind(...) === 'opaque'` instead, but it
+ * should be a deliberate change with a fixture behind it, not an accident.
  */
 export function blockingAncestorsOf(
   result: TokenizeResult,
@@ -675,6 +683,33 @@ export function blockingAncestorsOf(
 /** True when every ancestor up to the document root is a sectioning container. */
 export function isAddressable(result: TokenizeResult, elementIndex: number): boolean {
   return blockingAncestorsOf(result, elementIndex).length === 0;
+}
+
+/**
+ * Notice codes that mean the source is NOT well-formed storage.
+ *
+ * `stray-less-than` is deliberately excluded: a bare `<` is ordinary prose (`3 < 4`) and
+ * Confluence stores it unescaped, so treating it as fatal would reject legitimate pages. The
+ * fatal set is decided here, once, so section 5's submitted-content validation (task 5.4) and
+ * section 6's assembled-document validation (task 6.8a) cannot disagree about it.
+ */
+const FATAL_NOTICE_CODES: ReadonlySet<NoticeCode> = new Set<NoticeCode>([
+  'unmatched-close-tag',
+  'implicitly-closed-element',
+  'unclosed-element-at-eof',
+  'unterminated-tag',
+  'unterminated-comment',
+  'unterminated-cdata',
+]);
+
+/** The notices that indicate malformed storage. Empty means well-formed. */
+export function wellFormednessErrors(result: TokenizeResult): TokenizerNotice[] {
+  return result.notices.filter((notice) => FATAL_NOTICE_CODES.has(notice.code));
+}
+
+/** True when the source tokenized as well-formed storage. */
+export function isWellFormed(result: TokenizeResult): boolean {
+  return wellFormednessErrors(result).length === 0;
 }
 
 /** Get an attribute's decoded value, or `undefined`. */
