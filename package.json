@@ -23,7 +23,7 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"__tests__/**/*.ts\" \"scripts/**/*.mjs\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"__tests__/**/*.ts\" \"scripts/**/*.mjs\"",
-    "quality:check": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test",
+    "quality:check": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm run test:coverage",
     "quality:fix": "npm run format && npm run lint:fix && npm run typecheck && npm run build",
     "quality:full": "npm run format && npm run lint:fix && npm run typecheck && npm run build && npm run test:coverage",
     "start:http": "node build/http-server.js",
