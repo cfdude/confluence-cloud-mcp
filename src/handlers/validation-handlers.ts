@@ -107,8 +107,7 @@ function buildReport(options: {
   allowMarkdownContent: boolean;
   confirmConstructRemoval: boolean;
 }) {
-  const { failures, page, scopedHeading, allowMarkdownContent, confirmConstructRemoval } =
-    options;
+  const { failures, page, scopedHeading, allowMarkdownContent, confirmConstructRemoval } = options;
 
   const skipped: SkippedCheck[] = [];
   if (allowMarkdownContent) {
@@ -175,7 +174,10 @@ function buildReport(options: {
             version: page.version.number,
             ...(scopedHeading === undefined
               ? {}
-              : { scopedToHeading: scopedHeading.text, scopedToOccurrence: scopedHeading.occurrence }),
+              : {
+                  scopedToHeading: scopedHeading.text,
+                  scopedToOccurrence: scopedHeading.occurrence,
+                }),
             note:
               `Pass version ${page.version.number} as expectedVersion on the write this ` +
               `content is for. ` +
