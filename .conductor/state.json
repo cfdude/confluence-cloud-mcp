@@ -18,6 +18,38 @@
           "reviewedAt": "2026-08-25T13:44:01.443Z",
           "note": "fresh-context spec review; 2 rounds FAIL (nested-heading section resolution, splice-offset/heading-retention contradiction, layout container ambiguity, stale bullet rule) then pass on 3rd"
         }
+      },
+      "autonomy": {
+        "level": "autonomous",
+        "preAuthorized": [
+          {
+            "category": "filesystem",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "rewrite content-converter.ts and add tokenizer/handler/test files; all under git, fully revertible"
+          },
+          {
+            "category": "network",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "read-only Confluence GETs for fixture capture and corpus validation"
+          },
+          {
+            "action": "create and delete TEST",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "-prefixed pages in onvex APA space for task 7.5:scoped to a test space, prefixed, deleted after; per CLAUDE.md testing guidance"
+          },
+          {
+            "action": "add one parser dependency (parse5 or hand-rolled fallback) per task 2.2",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "decided empirically by task 2.1; net -2 packages after deps-security-sweep"
+          }
+        ],
+        "context": [
+          "Fixture capture is onvex-only and sanitized; listreports/Highway is never written to fixtures (public repo)",
+          "Corpus validation scripts are one-off, non-committed, emit counts and page ids only",
+          "No writes of any kind to Highway Confluence during this epic",
+          "Rob authorized fully unattended execution through section 6, reporting at integration (section 7)"
+        ],
+        "notifications": []
       }
     },
     {
@@ -82,7 +114,7 @@
     },
     {
       "id": "repair-corrupted-pages",
-      "title": "Restore 27 list items destroyed by the $1 bug on 2 live pages from version history",
+      "title": "Restore 26 high-confidence corrupted pages (11 Highway ToC macros, 2 $1 pages, 13 markdown-leak) from version history; ambiguous bullet pages excluded",
       "priority": "P2",
       "status": "planned",
       "role": "epic",
@@ -97,7 +129,7 @@
     }
   ],
   "detourStack": [],
-  "revision": 9,
+  "revision": 12,
   "pmVersion": "0.26.0",
   "platform": "claude-code"
 }
