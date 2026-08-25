@@ -291,15 +291,16 @@ describe('verifyApiConnection', () => {
 
 describe('v2 interceptor: the AxiosError is replaced before any method sees it', () => {
   /**
-   * ROOT CAUSE of several documented bugs in this file, kept in one place.
+   * ROOT CAUSE of the bugs marked "Was BUG #n" in this file, kept in one place.
    *
    * The v2 client's rejection interceptor ends `throw this.handleError(error)`, which returns
-   * a `ConfluenceApiError`. Every v2 method that later asks `isAxiosError(error)` therefore
-   * gets FALSE, and every branch behind that question -- status-specific messages, v1
-   * fallbacks, ConfluenceError code mapping -- is unreachable in production.
+   * a `ConfluenceApiError`. Every v2 method that USED to ask `isAxiosError(error)` therefore
+   * got FALSE, and every branch behind that question -- status-specific messages, v1
+   * fallbacks, ConfluenceError code mapping -- was unreachable in production.
    *
-   * The v1 client has no interceptor at all, which is why the same patterns work there
-   * (getPageContent, searchConfluenceContent, moveConfluencePage all map correctly).
+   * The v1 client has no interceptor at all, which is why the same patterns kept working
+   * there (getPageContent, searchConfluenceContent, moveConfluencePage all mapped correctly)
+   * and the defect stayed invisible.
    *
    * FIXED by the client-error-mapping change, and the substitution below is still the
    * contract: the interceptor still converts, because the preserved status is what lets the

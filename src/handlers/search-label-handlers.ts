@@ -238,7 +238,10 @@ export async function handleRemoveConfluenceLabel(args: RemoveLabelArgs) {
           'Error removing label:',
           error instanceof Error ? error.message : String(error)
         );
-        if (error instanceof ConfluenceError && error.code === 'LABEL_EXISTS') {
+        // PAGE_NOT_FOUND, not LABEL_EXISTS: removal cannot raise "already exists", so this
+        // branch tested for a code the client never produces here and every real failure --
+        // including a plain missing page or label -- degraded to InternalError.
+        if (error instanceof ConfluenceError && error.code === 'PAGE_NOT_FOUND') {
           throw new McpError(ErrorCode.InvalidRequest, `Label not found: ${error.message}`);
         }
         throw new McpError(

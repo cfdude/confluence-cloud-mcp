@@ -349,23 +349,21 @@ describe('handleAddConfluenceLabel', () => {
     });
   });
 
-  it.each([409, 400, 403])(
-    'degrades a %i from the LIVE client to InternalError, because no code survives to branch on',
-    async (status) => {
-      // The three fixtures above are the CONTRACT the handler was written against. This one is
-      // what the real client actually delivers: `confluence-client.test.ts` proves the v2
-      // response interceptor replaces the AxiosError with a ConfluenceApiError before
-      // `addConfluenceLabel`'s own `isAxiosError` check runs, so it never constructs a
-      // ConfluenceError at all. "Label already exists" therefore reaches the agent as an
-      // InternalError rather than the InvalidRequest above.
-      addConfluenceLabel.mockRejectedValue(new ConfluenceApiError('Confluence API Error', status));
+  it('degrades a statusless ConfluenceApiError to InternalError', async () => {
+    // The fixtures above are the contract, and `confluence-client.test.ts` now proves the
+    // client honours it: a 409 becomes LABEL_EXISTS, a 400 INVALID_LABEL, a 403
+    // PERMISSION_DENIED. What still arrives uncoded is a failure that never reached
+    // Confluence -- no status, so nothing to map -- and InternalError is the honest answer
+    // for it.
+    addConfluenceLabel.mockRejectedValue(
+      new ConfluenceApiError('Confluence API Error: socket hang up')
+    );
 
-      await expect(handleAddConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
-        code: ErrorCode.InternalError,
-        message: expect.stringContaining('Failed to add label'),
-      });
-    }
-  );
+    await expect(handleAddConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
+      code: ErrorCode.InternalError,
+      message: expect.stringContaining('Failed to add label'),
+    });
+  });
 });
 
 describe('handleRemoveConfluenceLabel', () => {
@@ -383,40 +381,30 @@ describe('handleRemoveConfluenceLabel', () => {
     });
   });
 
-  it('degrades a real 404 from the LIVE client to InternalError', async () => {
-    // BUG, documented rather than fixed, and confirmed against the client rather than assumed:
-    // `confluence-client.test.ts` shows `removeConfluenceLabel` never constructs a
-    // ConfluenceError at all -- the v2 interceptor hands it a ConfluenceApiError, which fails
-    // its `isAxiosError` check, so every status leaves as ConfluenceApiError. A missing page
-    // therefore reaches the agent as InternalError with no "not found" signal.
-    removeConfluenceLabel.mockRejectedValue(new ConfluenceApiError('Confluence API Error', 404));
-
-    await expect(handleRemoveConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
-      code: ErrorCode.InternalError,
-      message: expect.stringContaining('Failed to remove label'),
-    });
-  });
-
-  it('maps a PAGE_NOT_FOUND ConfluenceError to InternalError as well', async () => {
-    // Even the code the client's own switch WOULD produce, were it reachable, is not the code
-    // this handler branches on -- it tests for `LABEL_EXISTS`, which removal never raises.
-    // Two independent defects stacked on the same path.
+  it('maps PAGE_NOT_FOUND -- what a 404 now becomes -- to InvalidRequest', async () => {
+    // Two stacked defects, both fixed. The client's 404 mapping was unreachable behind
+    // `isAxiosError`, AND this handler branched on `LABEL_EXISTS`, which removal never
+    // raises. A missing page therefore reached the agent as InternalError with no "not
+    // found" signal; `confluence-client.test.ts` now proves a 404 arrives here as
+    // PAGE_NOT_FOUND, and this is what the handler makes of it.
     removeConfluenceLabel.mockRejectedValue(
       new ConfluenceError('Page or label not found', 'PAGE_NOT_FOUND')
     );
 
     await expect(handleRemoveConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
-      code: ErrorCode.InternalError,
-      message: expect.stringContaining('Failed to remove label'),
+      code: ErrorCode.InvalidRequest,
+      message: expect.stringContaining('Label not found'),
     });
   });
 
-  it('maps LABEL_EXISTS to InvalidRequest (a branch nothing can reach)', async () => {
-    removeConfluenceLabel.mockRejectedValue(new ConfluenceError('gone', 'LABEL_EXISTS'));
+  it('degrades a statusless ConfluenceApiError to InternalError', async () => {
+    removeConfluenceLabel.mockRejectedValue(
+      new ConfluenceApiError('Confluence API Error: socket hang up')
+    );
 
     await expect(handleRemoveConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
-      code: ErrorCode.InvalidRequest,
-      message: expect.stringContaining('Label not found'),
+      code: ErrorCode.InternalError,
+      message: expect.stringContaining('Failed to remove label'),
     });
   });
 
