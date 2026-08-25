@@ -109,10 +109,10 @@ indicate the caller is writing back a corrupted read, so such content cannot rea
 Detection SHALL cover the artifact both as element content and as bare text, because the
 observed corruption on live pages appears as unwrapped text rather than as list elements.
 
-#### Scenario: Bare textual placeholder sequence is rejected
+#### Scenario: Bare textual placeholder is rejected
 
-- **WHEN** submitted content contains the text sequence `1. $1` followed by `2. $1` outside a
-  code block
+- **WHEN** submitted content contains a single occurrence of the text `1. $1` outside a code
+  block, where the `$1` is not followed by a digit
 - **THEN** the write is rejected identifying the affected text
 - **AND** the page is not modified
 
@@ -142,11 +142,17 @@ storage format and how to obtain it.
 
 #### Scenario: Markdown heading is rejected
 
-- **WHEN** submitted content contains a line beginning with `#` followed by a space, outside a
-  code or preformatted region
+- **WHEN** submitted content contains a line beginning with two to six `#` characters followed
+  by a space, outside a code or preformatted region
 - **THEN** the write is rejected reporting that the content appears to be markdown
 - **AND** the error states that storage format is required
 - **AND** the page is not modified
+
+#### Scenario: Single leading hash is not treated as a markdown heading
+
+- **WHEN** submitted content contains a line beginning with exactly one `#` followed by a space
+  and no other markdown structural signal
+- **THEN** the write is not rejected on that basis
 
 #### Scenario: Bare bullet alone is NOT rejected
 

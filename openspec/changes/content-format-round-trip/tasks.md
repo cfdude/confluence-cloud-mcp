@@ -45,7 +45,7 @@ rewrite has no regression net.
 - [ ] 5.2 Resolve the write version server-side as current + 1 and verify a page at version 7 is written as version 8 without the caller supplying a version
 - [ ] 5.3 Add optional `expectedVersion` conflict detection and verify a stale value fails reporting both expected and current version, leaving the page unmodified
 - [ ] 5.4 Implement well-formedness validation of submitted content and verify malformed input is rejected locally with no modifying request sent
-- [ ] 5.5 Implement markdown-as-storage detection for line-initial `#`, `**` emphasis, and triple-backtick fences, evaluated outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA; verify each is rejected, that the same syntax inside a code block is accepted, and that a bare `-`/`*` bullet ALONE is NOT rejected while a bullet co-occurring with another signal IS (design.md — D8)
+- [ ] 5.5 Implement markdown-as-storage detection for line-initial `##`-`######` (two to six hashes; a single `#` is NOT a signal), `**` emphasis, and triple-backtick fences, evaluated outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA; verify each is rejected, that the same syntax inside a code block is accepted, and that a bare `-`/`*` bullet ALONE is NOT rejected while a bullet co-occurring with another signal IS (design.md — D8)
 - [ ] 5.6 Verify the markdown rejection error names the problem and directs the caller to retrieve with `format: 'storage'` and author against that
 - [ ] 5.7 Validate the markdown detector against the real corpus using a ONE-OFF, NON-COMMITTED local script outside `npm test`/CI (separate from the 1.2 fixture tool, which is onvex-gated by design); verify it flags the already-identified corrupted pages and does NOT flag bare-bullet-only pages, and verify the script emits only counts and page ids — never matched Highway text
 - [ ] 5.8 Implement conversion-artifact detection covering BOTH the bare-text signature `/[0-9]+\.\s*\$1(?![0-9])/` and a list item whose entire text is `$1`, and verify `$1.2M`, `$1K`, `$1,505,674`, and `$1::vector` are NOT rejected (design.md — D6; the one live corrupted page carries the artifact as bare text with no list markup)
@@ -63,7 +63,8 @@ rewrite has no regression net.
 - [ ] 6.1 Implement section resolution returning THREE offsets per heading — `headingStart`, `bodyStart`, `sectionEnd` — and verify each operation acts on the span design.md D3 assigns it (replace acts on `bodyStart..sectionEnd`, so the heading survives without the caller re-supplying it and is not duplicated)
 - [ ] 6.1a Implement the sectioning-container rule — layout elements are containers; macro bodies and table cells are opaque — and verify with a fixture `<h2>A</h2><p>x</p><ac:structured-macro ac:name="expand"><ac:rich-text-body><h2>B</h2><p>y</p></ac:rich-text-body></ac:structured-macro><p>z</p><h2>C</h2>` that replacing section A leaves the macro and `<p>z</p>` byte-identical (design.md — D3; 275 live Highway pages have a heading inside a macro body)
 - [ ] 6.1b Verify a heading inside a macro body or table cell is NOT addressable and returns a not-found error naming addressable headings only
-- [ ] 6.1c Verify a heading inside a layout cell IS addressable and its `sectionEnd` is clamped to that cell, using a fixture with two layout cells (238 live Highway pages have every heading inside a layout cell)
+- [ ] 6.1c Verify a heading inside a layout cell IS addressable and its `sectionEnd` stops at that cell's end, using a fixture with two layout cells (238 live Highway pages have every heading inside a layout cell)
+- [ ] 6.1e Verify the nearest-container scoping rule on the composite shape — a root-level heading followed by an `ac:layout` whose cells contain headings — and confirm replacing the root-level section preserves the entire layout byte-for-byte, cell headings included (design.md — D3; not present in the current corpus, but the rule must hold)
 - [ ] 6.1d Assert the same-container invariant on resolved offsets and verify the edit is rejected rather than spliced when it cannot hold
 - [ ] 6.2 Verify subsections are included in a parent section's extent using a fixture with a level-3 heading inside a level-2 section
 - [ ] 6.3 Reject ambiguous heading matches without an occurrence index, reporting the match count, and verify the page is not modified
@@ -77,7 +78,7 @@ rewrite has no regression net.
 - [ ] 6.9 Make `expectedVersion` REQUIRED on section edits and verify a request omitting it is rejected and one with a stale value fails before any splice is attempted (design.md — D9)
 - [ ] 6.10 Add the section-edit tool schemas and handlers wired to the shared write-safety contract, and verify title preservation, markdown-as-storage rejection, and conflict detection all apply to section edits
 - [ ] 6.11 Verify unknown third-party markup outside the edited section is preserved byte-for-byte using a fixture containing markup the server does not model
-- [ ] 6.12 Define and verify whitespace handling at the section/next-heading boundary so append and insert produce neither doubled nor missing blank lines
+- [ ] 6.12 Verify the no-whitespace-adjustment rule: content is inserted verbatim at the offset with no whitespace inserted, trimmed, normalized, or re-indented on either side of a splice (design.md — D3)
 
 ## 7. Integration and verification
 
@@ -87,4 +88,4 @@ rewrite has no regression net.
 - [ ] 7.3 Run `npm run lint` and `npm run build` and verify both pass with no errors
 - [ ] 7.4 Run the full test suite and verify every test passes, including the pre-existing search test
 - [ ] 7.5 Exercise the changed tools against the live `onvex` instance in the `APA` space using `TEST:`-prefixed pages, verify create/read/section-edit/whole-page-update behave per spec, and delete the test pages afterward
-- [ ] 7.6 Re-run the corruption scan against both configured sites and verify no new `N. $1` occurrences were introduced by this work
+- [ ] 7.6 Re-run the corruption scan against both configured sites using the 5.7 one-off script, inheriting its output constraint (counts and page ids only, never matched text), and verify no new `N. $1` or markdown-in-storage occurrences were introduced by this work

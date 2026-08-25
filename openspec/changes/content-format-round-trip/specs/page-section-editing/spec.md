@@ -13,6 +13,24 @@ sectioning container. Layout elements SHALL be treated as sectioning containers.
 and table cells SHALL be treated as opaque: headings inside them are neither addressable nor
 considered when determining any other section's extent.
 
+Every heading belongs to exactly one sectioning container — its **nearest** enclosing one, or
+the document root if it has none. A section's extent SHALL be determined only among headings
+sharing that same nearest container. A heading in a more deeply nested container is therefore
+invisible when determining an outer section's extent.
+
+#### Scenario: A deeper container's headings do not truncate an outer section
+
+- **WHEN** a section whose nearest container is the document root contains a layout whose cells
+  contain headings of the same level
+- **THEN** the section's extent continues past the entire layout
+- **AND** replacing that section preserves the layout and every heading inside it byte-for-byte
+
+#### Scenario: Extent is measured within the nearest container only
+
+- **WHEN** a heading's nearest sectioning container is a layout cell
+- **THEN** its section's extent is determined only among headings in that same cell
+- **AND** headings in other cells or at the document root do not bound it
+
 #### Scenario: Heading inside a macro body is not addressable
 
 - **WHEN** an edit targets heading text that occurs only inside a macro body
@@ -44,7 +62,7 @@ considered when determining any other section's extent.
 #### Scenario: Resolved boundaries share one container
 
 - **WHEN** section resolution cannot place the section's start and end within the same
-  sectioning container
+  nearest sectioning container
 - **THEN** the edit is rejected rather than spliced
 - **AND** the page is not modified
 
@@ -164,6 +182,29 @@ content that is not well-formed before writing to Confluence.
 
 - **WHEN** a section edit supplies well-formed storage format content
 - **THEN** the edit proceeds
+
+### Requirement: Splice boundaries do not adjust whitespace
+
+The caller's content SHALL be inserted verbatim at the computed offset. The server SHALL NOT
+insert, trim, normalize, or re-indent whitespace on either side of a splice, so that boundary
+behavior follows from the byte-for-byte guarantee rather than from formatting judgment.
+
+#### Scenario: No whitespace is added at an append boundary
+
+- **WHEN** content is appended to a section
+- **THEN** the bytes immediately preceding the insertion point are unchanged
+- **AND** no whitespace is introduced between them and the inserted content
+
+#### Scenario: No whitespace is trimmed at a replace boundary
+
+- **WHEN** a section body is replaced
+- **THEN** the bytes immediately following the replaced span are unchanged, including any
+  whitespace preceding the next heading
+
+#### Scenario: Supplied content is inserted verbatim
+
+- **WHEN** content with leading or trailing whitespace is supplied
+- **THEN** that whitespace is preserved exactly in the resulting document
 
 ### Requirement: The assembled document is validated before writing
 

@@ -136,15 +136,40 @@ are exactly the structured pages this change targets.
 So the rule is asymmetric, by container kind:
 
 - **`ac:layout` / `ac:layout-section` / `ac:layout-cell` are sectioning containers.** Headings
-  inside them are addressable; a section's `sectionEnd` is clamped to its own cell's end, so a
-  section never spans out of the cell that contains it.
+  inside them are addressable.
 - **`ac:rich-text-body` and any other macro interior is opaque.** Headings inside are neither
   addressable nor considered when computing another section's `sectionEnd` — they are
   invisible to the resolver, which is what keeps macro interiors unparsed per the Non-Goals.
 - **Table cells are opaque**, on the same reasoning.
 
-**Invariant:** `bodyStart` and `sectionEnd` must resolve to the same sectioning container. An
+**The scoping rule that makes this unambiguous — nearest container, not transitive
+containment.** Every heading belongs to exactly one sectioning container: its *nearest*
+enclosing one, the document root if there is none. A section's `sectionEnd` is computed
+**only** among headings sharing that same nearest container. Consequently a section never
+spans out of its own container, and — equally important — a heading in a *deeper* container is
+invisible when computing an outer section's `sectionEnd`. To an outer section, an entire
+`ac:layout` is opaque body content, exactly as a macro is.
+
+Stating it this way rather than per-container-kind matters: it resolves macros, layouts, table
+cells, and any container Confluence adds later under one rule, and it closes the
+otherwise-ambiguous case of a root-level heading followed by a layout whose cells contain
+headings. Under transitive containment that case would splice inside `<ac:layout-cell>` and
+orphan closing tags — the same defect the macro rule exists to prevent.
+
+*Empirical note:* that composite case does not occur in the corpus — all 259 layout-bearing
+pages have the layout as the first element of the page body, none nests layouts, and no page
+has content preceding its layout, so a root-level section containing a layout never arises
+today. The rule is stated anyway, because "not observed in 3,942 pages" is not "cannot occur,"
+and the general form costs one sentence.
+
+**Invariant:** `bodyStart` and `sectionEnd` must share a nearest sectioning container. An
 implementation that cannot assert this must fail the edit rather than splice.
+
+**Whitespace at boundaries is not adjusted.** The caller's fragment is inserted verbatim at
+the computed offset; no whitespace is inserted, trimmed, normalized, or re-indented on either
+side of a splice. This follows directly from the byte-for-byte philosophy — any "tidying" is a
+modification of bytes the caller did not ask to change — and it makes boundary behavior
+testable rather than a matter of taste.
 
 Ambiguity is an error, not a heuristic: duplicate heading text without an occurrence index
 fails and reports the match count, per spec. Guessing which of two identically-titled sections
@@ -263,11 +288,9 @@ output, and its presence in submitted content is unambiguous proof of a lossy ro
 11 Highway pages a working table-of-contents macro has already been replaced by that literal
 string, destroying page navigation.
 
-Critically, **well-formedness validation cannot catch this**: `### Heading` and `- bullet` are
-perfectly valid XHTML text nodes. It needs a distinct check for markdown structural syntax —
-line-initial `#`, line-initial `-`/`*` followed by a space, `**` emphasis, and triple-backtick
-fences — evaluated only outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA, since
-markdown inside a code block is legitimate content.
+Critically, **well-formedness validation cannot catch this**: `### Heading` is a perfectly
+valid XHTML text node, which is why this needs its own check rather than falling out of
+parsing.
 
 The rejection message is the important half. It must name the problem and the remedy —
 "content appears to be markdown; supply Confluence storage format, or retrieve the page with
@@ -372,8 +395,9 @@ today.
   preserved verbatim, since structure is the only thing the fixtures test. Where a shape can
   be hand-authored instead of captured, hand-author it.
 - **The markdown-as-storage check could reject a page legitimately documenting markdown** →
-  Accepted; see D8. Code and preformatted regions are excluded, and the confirmation flag
-  provides an override.
+  Accepted; see D8. Code and preformatted regions are excluded, bare bullets are outside the
+  rule entirely, and the **dedicated markdown-override flag** exists for exactly this case —
+  deliberately not the construct-removal confirmation, which asserts something unrelated.
 - **`parse5` is HTML5-oriented and storage format is XHTML-like** → Evaluate against real
   macro- and layout-bearing fixtures captured from a live instance before committing to it;
   the fallback is scoped in the tasks.

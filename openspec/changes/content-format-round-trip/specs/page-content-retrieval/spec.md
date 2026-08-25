@@ -135,13 +135,16 @@ section to edit without parsing the content itself.
 - **WHEN** a page contains more than one heading with identical text
 - **THEN** each is listed separately with an occurrence index that distinguishes it
 
-#### Scenario: Outline marks which headings are editable
+#### Scenario: Outline lists every heading with an addressability flag
 
-- **WHEN** a page contains headings inside macro bodies or table cells
-- **THEN** the outline indicates that those headings are not addressable for section editing
+- **WHEN** a page contains headings both inside and outside macro bodies or table cells
+- **THEN** the outline lists every heading in document order
+- **AND** each entry carries a flag stating whether it is addressable for section editing
+- **AND** headings inside macro bodies or table cells are flagged as not addressable
 
 #### Scenario: Page with no addressable headings is identifiable
 
-- **WHEN** a page has no addressable headings
-- **THEN** the outline is empty, allowing a caller to determine that section editing is
-  unavailable before attempting it
+- **WHEN** every heading on a page sits inside a macro body or table cell
+- **THEN** the outline still lists those headings
+- **AND** no entry is flagged addressable, allowing a caller to determine that section editing
+  is unavailable before attempting it
