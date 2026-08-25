@@ -11,7 +11,14 @@
       "lane": "openspec",
       "links": [],
       "reconcileNeeded": false,
-      "startedAt": "2026-08-24T22:29:36.636Z"
+      "startedAt": "2026-08-24T22:29:36.636Z",
+      "gateReview": {
+        "gate1": {
+          "verdict": "pass",
+          "reviewedAt": "2026-08-25T13:44:01.443Z",
+          "note": "fresh-context spec review; 2 rounds FAIL (nested-heading section resolution, splice-offset/heading-retention contradiction, layout container ambiguity, stale bullet rule) then pass on 3rd"
+        }
+      }
     },
     {
       "id": "content-validator",
@@ -90,7 +97,7 @@
     }
   ],
   "detourStack": [],
-  "revision": 8,
+  "revision": 9,
   "pmVersion": "0.26.0",
   "platform": "claude-code"
 }

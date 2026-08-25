@@ -6,7 +6,7 @@ rewrite has no regression net.
 - [ ] 1.1 Confirm the Jest harness runs the existing suite from a clean checkout and verify `npm test` passes and reports the one existing test file
 - [ ] 1.2 Add a fixture-capture script restricted to the `onvex` site ONLY — never `listreports`/Highway — that fetches raw `body-format=storage` and writes to `__tests__/fixtures/`, and verify it refuses to run against any other configured site (this repository is public; see design.md — Risks)
 - [ ] 1.3 Capture storage fixtures covering ordered lists, nested lists, tables, structured macros, layouts, mixed macro-inside-list, and a plain page; sanitize all captured prose, names, figures, and URLs to synthetic equivalents while preserving markup structure verbatim; verify each fixture is non-empty, well-formed, and contains no real page text
-- [ ] 1.3a Capture or hand-author fixtures for the nested-heading cases: heading inside `ac:rich-text-body`, heading inside a table cell, heading inside `ac:layout-cell`, and a page whose every heading is inside a layout cell; verify each shape is present
+- [ ] 1.3a Capture or hand-author fixtures for the nested-heading cases: heading inside `ac:rich-text-body`, heading inside a table cell, heading inside `ac:layout-cell`, a page whose every heading is inside a layout cell, and the composite shape task 6.1e needs (a root-level heading followed by an `ac:layout` whose cells contain headings — hand-author this one; it does not occur in the corpus); verify each shape is present
 - [ ] 1.4 Add a fixture asserting the exact reported defect — an ordered list whose conversion currently yields `1. $1` — and verify it FAILS against the current converter, proving the fixture detects the bug
 
 ## 2. Tokenizer
