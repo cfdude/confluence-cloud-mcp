@@ -172,10 +172,54 @@
         }
       ],
       "reconcileNeeded": false
+    },
+    {
+      "id": "transport-and-client-coverage",
+      "title": "Cover the untested layer: http-server.ts and server.ts at 0%, confluence-client.ts at 13.87% -- every API call and both transports",
+      "priority": "P1",
+      "status": "archived",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [],
+      "reconcileNeeded": false,
+      "startedAt": "2026-08-25T21:56:26.991Z",
+      "completedAt": "2026-08-25T22:28:53.054Z"
+    },
+    {
+      "id": "reenable-security-scans",
+      "title": "Re-enable the Security Scans workflow (disabled_inactivity, never run) and triage what it reports",
+      "priority": "P2",
+      "status": "archived",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T21:56:20.399Z"
+    },
+    {
+      "id": "client-error-mapping",
+      "title": "Fix the v2 interceptor swallowing AxiosError: dead isAxiosError branches, unreachable v1 label fallbacks, unbounded 429 retry, page reads losing 404/403/500 distinction",
+      "priority": "P1",
+      "status": "archived",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T22:44:49.316Z"
+    },
+    {
+      "id": "set-content-property-decision",
+      "title": "Decide setContentProperty's fate: v1 fallback is now reachable but omits the required version object, and the method has no caller in src/ -- fix the version semantics or delete the dead code",
+      "priority": "P3",
+      "status": "queued",
+      "role": "epic",
+      "lane": "decision",
+      "links": [],
+      "reconcileNeeded": false
     }
   ],
   "detourStack": [],
-  "revision": 27,
+  "revision": 35,
   "pmVersion": "0.26.0",
   "platform": "claude-code"
 }

@@ -133,6 +133,10 @@ export async function handleGetConfluenceLabels(args: GetLabelsArgs) {
           'Error getting labels:',
           error instanceof Error ? error.message : String(error)
         );
+        // Same answer the other two label tools give for a page that is not there.
+        if (error instanceof ConfluenceError && error.code === 'PAGE_NOT_FOUND') {
+          throw new McpError(ErrorCode.InvalidRequest, `Page not found: ${error.message}`);
+        }
         throw new McpError(
           ErrorCode.InternalError,
           `Failed to get labels: ${error instanceof Error ? error.message : String(error)}`
@@ -192,6 +196,9 @@ export async function handleAddConfluenceLabel(args: AddLabelArgs) {
             throw new McpError(ErrorCode.InvalidRequest, `Label already exists: ${error.message}`);
           } else if (error.code === 'INVALID_LABEL') {
             throw new McpError(ErrorCode.InvalidParams, `Invalid label format: ${error.message}`);
+          } else if (error.code === 'PAGE_NOT_FOUND') {
+            // Same answer the other two label tools give for a page that is not there.
+            throw new McpError(ErrorCode.InvalidRequest, `Page not found: ${error.message}`);
           }
         }
         throw new McpError(
@@ -238,7 +245,10 @@ export async function handleRemoveConfluenceLabel(args: RemoveLabelArgs) {
           'Error removing label:',
           error instanceof Error ? error.message : String(error)
         );
-        if (error instanceof ConfluenceError && error.code === 'LABEL_EXISTS') {
+        // PAGE_NOT_FOUND, not LABEL_EXISTS: removal cannot raise "already exists", so this
+        // branch tested for a code the client never produces here and every real failure --
+        // including a plain missing page or label -- degraded to InternalError.
+        if (error instanceof ConfluenceError && error.code === 'PAGE_NOT_FOUND') {
           throw new McpError(ErrorCode.InvalidRequest, `Label not found: ${error.message}`);
         }
         throw new McpError(
