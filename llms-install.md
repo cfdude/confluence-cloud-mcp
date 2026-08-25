@@ -19,7 +19,7 @@ This guide provides detailed instructions for AI assistants like Cline to instal
     "confluence": {
       "command": "docker",
       "args": ["run", "--rm", "-i", 
-        "ghcr.io/aaronsb/confluence-cloud-mcp:latest"],
+        "ghcr.io/cfdude/confluence-cloud-mcp:latest"],
       "env": {
         "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@domain.com",
@@ -36,7 +36,7 @@ This guide provides detailed instructions for AI assistants like Cline to instal
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/aaronsb/confluence-cloud-mcp.git
+git clone https://github.com/cfdude/confluence-cloud-mcp.git
 cd confluence-cloud-mcp
 ```
 
@@ -68,7 +68,7 @@ cd confluence-cloud-mcp
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/aaronsb/confluence-cloud-mcp.git
+git clone https://github.com/cfdude/confluence-cloud-mcp.git
 cd confluence-cloud-mcp
 ```
 
