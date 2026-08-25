@@ -1,9 +1,21 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
-import { convertStorageToMarkdown } from '../utils/content-converter.js';
+import type { Page } from '../types/index.js';
 import { cachePageInstance } from '../utils/instance-cache.js';
+import {
+  buildPageListEntry,
+  buildPageRetrievalPayload,
+  resolvePageFormat,
+} from '../utils/page-retrieval.js';
 import { withConfluenceContext } from '../utils/tool-wrapper.js';
 import type { ToolArgs } from '../utils/tool-wrapper.js';
+import {
+  assertExpectedVersion,
+  assertWriteIsSafe,
+  isVersionConflictResponse,
+  resolveWriteVersion,
+  versionConflictError,
+} from '../utils/write-safety.js';
 
 interface ListPagesArgs extends ToolArgs {
   spaceId: string;
@@ -31,21 +43,12 @@ export async function handleListConfluencePages(args: ListPagesArgs) {
           await cachePageInstance(page.id, toolArgs.spaceId, instanceName);
         }
 
-        // Transform to minimal format with cursor pagination support
+        // Transform to minimal format with cursor pagination support. Listings carry no
+        // page bodies -- see buildPageListEntry (design.md D11, task 4.9).
         const simplified = {
           instance: instanceName,
           spaceId: toolArgs.spaceId,
-          results: pages.results.map((page) => ({
-            id: page.id,
-            title: page.title,
-            status: page.status.value,
-            parentId: page.parentId || null,
-            createdAt: page.createdAt,
-            version: page.version.number,
-            _links: {
-              webui: page._links.webui,
-            },
-          })),
+          results: pages.results.map(buildPageListEntry),
           cursor: pages._links.next?.split('cursor=')[1],
           limit: pages.limit,
           size: pages.size,
@@ -76,9 +79,13 @@ export async function handleListConfluencePages(args: ListPagesArgs) {
 
 interface GetPageArgs extends ToolArgs {
   pageId: string;
+  format?: string;
 }
 
 export async function handleGetConfluencePage(args: GetPageArgs) {
+  // Validated BEFORE the wrapper so an invalid format returns no page content (task 4.3).
+  const format = resolvePageFormat(args.format);
+
   return withConfluenceContext(
     args,
     { requiresPage: true },
@@ -89,27 +96,7 @@ export async function handleGetConfluencePage(args: GetPageArgs) {
         // Cache the page instance
         await cachePageInstance(page.id, page.spaceId, instanceName);
 
-        // Convert content to markdown
-        const markdownContent = page.body?.storage?.value
-          ? convertStorageToMarkdown(page.body.storage.value)
-          : '';
-
-        // Return simplified format with markdown
-        const simplified = {
-          instance: instanceName,
-          title: page.title,
-          content: markdownContent,
-          metadata: {
-            id: page.id,
-            spaceId: page.spaceId,
-            status: page.status.value,
-            version: page.version.number,
-            createdAt: page.createdAt,
-            lastModified: page.version.createdAt,
-            parentId: page.parentId || null,
-            url: page._links.webui,
-          },
-        };
+        const simplified = buildPageRetrievalPayload(page, instanceName, format);
 
         return {
           content: [
@@ -139,9 +126,13 @@ export async function handleGetConfluencePage(args: GetPageArgs) {
 interface FindPageArgs extends ToolArgs {
   title: string;
   spaceId?: string;
+  format?: string;
 }
 
 export async function handleFindConfluencePage(args: FindPageArgs) {
+  // Same contract as get-by-id, including pre-request validation (design.md D11).
+  const format = resolvePageFormat(args.format);
+
   return withConfluenceContext(
     args,
     { requiresSpace: false },
@@ -152,27 +143,7 @@ export async function handleFindConfluencePage(args: FindPageArgs) {
         // Cache the page instance
         await cachePageInstance(page.id, page.spaceId, instanceName);
 
-        // Convert content to markdown
-        const markdownContent = page.body?.storage?.value
-          ? convertStorageToMarkdown(page.body.storage.value)
-          : '';
-
-        // Return simplified format
-        const simplified = {
-          instance: instanceName,
-          title: page.title,
-          content: markdownContent,
-          metadata: {
-            id: page.id,
-            spaceId: page.spaceId,
-            status: page.status.value,
-            version: page.version.number,
-            createdAt: page.createdAt,
-            lastModified: page.version.createdAt,
-            parentId: page.parentId || null,
-            url: page._links.webui,
-          },
-        };
+        const simplified = buildPageRetrievalPayload(page, instanceName, format);
 
         return {
           content: [
@@ -204,6 +175,7 @@ interface CreatePageArgs extends ToolArgs {
   title: string;
   content: string;
   parentId?: string;
+  allowMarkdownContent?: boolean;
 }
 
 export async function handleCreateConfluencePage(args: CreatePageArgs) {
@@ -211,6 +183,15 @@ export async function handleCreateConfluencePage(args: CreatePageArgs) {
     args,
     { requiresSpace: true },
     async (toolArgs, { client, instanceName, spaceConfig }) => {
+      // Content checks run BEFORE any request, so a rejected create creates nothing
+      // (tasks 5.14, 5.16). Construct-loss is absent by design: there is no prior version to
+      // compare against (design.md D11). Deliberately outside the try below -- these errors
+      // are the actionable ones and must not be rewrapped as "Failed to create page".
+      await assertWriteIsSafe({
+        content: toolArgs.content,
+        allowMarkdownContent: toolArgs.allowMarkdownContent,
+      });
+
       try {
         // Apply default parent page if configured and not provided
         const parentId = toolArgs.parentId || spaceConfig?.defaultParentPageId;
@@ -275,9 +256,26 @@ export async function handleCreateConfluencePage(args: CreatePageArgs) {
 
 interface UpdatePageArgs extends ToolArgs {
   pageId: string;
-  title: string;
+  /**
+   * Optional (task 5.1). Omitted means "keep the current title".
+   *
+   * It used to be REQUIRED, which inverted the risk: an agent editing only body content had to
+   * restate the title, and any paraphrase silently RENAMED the page.
+   */
+  title?: string;
   content: string;
-  version: number;
+  /** Optional optimistic-concurrency check (design.md D5). */
+  expectedVersion?: number;
+  confirmConstructRemoval?: boolean;
+  allowMarkdownContent?: boolean;
+  /**
+   * Accepted and IGNORED, for callers written against the old schema.
+   *
+   * NOT mapped onto `expectedVersion`: an old caller was told to send `current + 1`, so
+   * treating it as an expectation would turn every legacy call into a spurious conflict. The
+   * server resolves the write version itself (design.md D5).
+   */
+  version?: number;
 }
 
 export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
@@ -285,16 +283,58 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
     args,
     { requiresPage: true },
     async (toolArgs, { client, instanceName }) => {
+      let currentPage: Page | undefined;
+      const loadCurrentPage = async (): Promise<Page> => {
+        if (currentPage) return currentPage;
+        try {
+          currentPage = await client.getConfluencePage(toolArgs.pageId);
+        } catch (error) {
+          if (error instanceof McpError) throw error;
+          throw new McpError(
+            ErrorCode.InternalError,
+            `Failed to read page ${toolArgs.pageId} before updating it: ` +
+              `${error instanceof Error ? error.message : String(error)}. The page was not ` +
+              `modified. The current version and title are read before every write so the ` +
+              `caller does not have to supply them (design.md D5).`
+          );
+        }
+        return currentPage;
+      };
+
+      // Preflight, ordered per design.md D10. The content-only checks need nothing from
+      // Confluence, so malformed or markdown content is rejected without a single request;
+      // the current page is fetched lazily, only if the pipeline reaches construct-loss.
+      await assertWriteIsSafe({
+        content: toolArgs.content,
+        allowMarkdownContent: toolArgs.allowMarkdownContent,
+        confirmConstructRemoval: toolArgs.confirmConstructRemoval,
+        currentContent: async () => {
+          const page = await loadCurrentPage();
+          assertExpectedVersion(toolArgs.expectedVersion, page.version.number);
+          return page.body?.storage?.value ?? '';
+        },
+      });
+
+      const page = await loadCurrentPage();
+      // Unconditional, because the version assertion inside the construct-loss resolver is not
+      // guaranteed to have run: an earlier preflight check may have thrown first, and the
+      // resolver is only reached when construct-loss is actually evaluated. Pure and
+      // idempotent, so asserting again when it did run costs nothing.
+      assertExpectedVersion(toolArgs.expectedVersion, page.version.number);
+
+      const title = toolArgs.title ?? page.title;
+      const nextVersion = resolveWriteVersion(page.version.number);
+
       try {
-        const page = await client.updateConfluencePage(
+        const updated = await client.updateConfluencePage(
           toolArgs.pageId,
-          toolArgs.title,
+          title,
           toolArgs.content,
-          toolArgs.version
+          nextVersion
         );
 
         // Update cache with the latest instance info
-        await cachePageInstance(page.id, page.spaceId, instanceName);
+        await cachePageInstance(updated.id, updated.spaceId, instanceName);
 
         return {
           content: [
@@ -304,10 +344,10 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
                 {
                   instance: instanceName,
                   message: 'Page updated successfully',
-                  pageId: page.id,
-                  title: page.title,
-                  version: page.version.number,
-                  url: page._links.webui,
+                  pageId: updated.id,
+                  title: updated.title,
+                  version: updated.version.number,
+                  url: updated._links.webui,
                 },
                 null,
                 2
@@ -316,6 +356,30 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
           ],
         };
       } catch (error) {
+        // A concurrent edit can land between resolving the version and submitting the write.
+        // Confluence rejecting it is reported in the SAME shape as the local check
+        // (design.md D12), so a caller has one case to handle.
+        if (isVersionConflictResponse(error)) {
+          let liveVersion: number | null = null;
+          try {
+            liveVersion = (await client.getConfluencePage(toolArgs.pageId)).version.number;
+          } catch {
+            // Re-read failed; the conflict is still reported, with the version unknown.
+          }
+          // The re-read also DISPROVES a conflict. Confluence answers 409 for more than a
+          // stale version -- a duplicate title in the space is the other common case, and
+          // `title` is still a supported parameter. If nothing moved, the 409 was about
+          // something else, and reporting "expected version 7 but the page is at version 7"
+          // would be both wrong and self-contradictory. Fall through to Confluence's own
+          // message instead.
+          if (liveVersion === null || liveVersion !== page.version.number) {
+            throw versionConflictError({
+              expectedVersion: page.version.number,
+              currentVersion: liveVersion,
+            });
+          }
+        }
+
         console.error(
           'Error updating page:',
           error instanceof Error ? error.message : String(error)

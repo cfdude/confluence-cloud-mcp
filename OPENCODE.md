@@ -159,7 +159,7 @@ For Docker deployments:
       "command": [
         "docker", "run", "--rm", "-i",
         "-v", "${HOME}/.confluence-config.json:/app/.confluence-config.json:ro",
-        "ghcr.io/aaronsb/confluence-cloud-mcp:latest"
+        "ghcr.io/cfdude/confluence-cloud-mcp:latest"
       ],
       "enabled": true,
       "environment": {
@@ -265,5 +265,5 @@ If authentication fails:
 ## Support
 
 For issues or questions:
-- [GitHub Issues](https://github.com/aaronsb/confluence-cloud-mcp/issues)
+- [GitHub Issues](https://github.com/cfdude/confluence-cloud-mcp/issues)
 - [OpenCode Documentation](https://opencode.ai/docs)

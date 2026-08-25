@@ -98,7 +98,10 @@ async function main() {
       if (!checkInitializeRequest(req.body)) {
         res.status(400).json({
           jsonrpc: '2.0',
-          error: { code: -32000, message: 'Bad Request: first request must be an initialization request' },
+          error: {
+            code: -32000,
+            message: 'Bad Request: first request must be an initialization request',
+          },
           id: null,
         });
         return;
@@ -182,7 +185,9 @@ async function main() {
     const now = Date.now();
     for (const [sid, session] of sessions) {
       if (now - session.lastActivity > SESSION_TIMEOUT_MS) {
-        console.error(`Cleaning up stale session ${sid} (idle ${Math.round((now - session.lastActivity) / 1000)}s)`);
+        console.error(
+          `Cleaning up stale session ${sid} (idle ${Math.round((now - session.lastActivity) / 1000)}s)`
+        );
         try {
           await session.transport.close();
           await session.server.close();

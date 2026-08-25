@@ -16,7 +16,7 @@ import type {
   RateLimitInfo,
   V1SearchResponse,
 } from '../types/index.js';
-import { ConfluenceError } from '../types/index.js';
+import { ConfluenceApiError, ConfluenceError } from '../types/index.js';
 
 export class ConfluenceClient {
   private client: AxiosInstance;
@@ -118,13 +118,18 @@ export class ConfluenceClient {
       },
     });
 
+    // The status is PRESERVED (not flattened into the message): design.md D12 needs it to
+    // classify a version conflict, and a message-only heuristic is not good enough for a
+    // write path.
     if (error.response?.data) {
       const confluenceError = error.response.data as ConfluenceError;
-      return new Error(
-        `Confluence API Error: ${confluenceError.message || JSON.stringify(error.response.data)}`
+      return new ConfluenceApiError(
+        `Confluence API Error: ${confluenceError.message || JSON.stringify(error.response.data)}`,
+        error.response.status,
+        error.response.data
       );
     }
-    return new Error(`Confluence API Error: ${error.message}`);
+    return new ConfluenceApiError(`Confluence API Error: ${error.message}`, error.response?.status);
   }
 
   // Verify connection to Confluence API - throws error if verification fails
@@ -209,12 +214,7 @@ export class ConfluenceClient {
       title?: string;
       status?: 'current' | 'archived' | 'draft' | 'trashed';
       sort?:
-        | 'created-date'
-        | '-created-date'
-        | 'modified-date'
-        | '-modified-date'
-        | 'title'
-        | '-title';
+        'created-date' | '-created-date' | 'modified-date' | '-modified-date' | 'title' | '-title';
     } = {}
   ): Promise<PaginatedResponse<Page>> {
     const response = await this.client.get('/pages', {
@@ -356,11 +356,21 @@ export class ConfluenceClient {
     return response.data;
   }
 
+  /**
+   * Replace a page's body.
+   *
+   * `nextVersion` is the version number to SUBMIT, already incremented. This method does no
+   * arithmetic on it and never derives it from a caller-supplied value: version resolution
+   * belongs to the write-safety layer (design.md D5), which reads the page's current version
+   * immediately beforehand. The previous signature forwarded a caller-supplied `version`
+   * verbatim while the tool description told the agent to increment it -- an off-by-one that
+   * surfaced as an undiagnosable 409.
+   */
   async updateConfluencePage(
     pageId: string,
     title: string,
     content: string,
-    version: number
+    nextVersion: number
   ): Promise<Page> {
     const body = {
       id: pageId,
@@ -371,7 +381,7 @@ export class ConfluenceClient {
         value: content,
       },
       version: {
-        number: version,
+        number: nextVersion,
         message: 'Updated via API',
       },
     };
@@ -486,7 +496,7 @@ export class ConfluenceClient {
   ): Promise<ConfluenceSearchResult> {
     try {
       const isPlainText = options.plainText === true;
-      const escapedText = cql.replace(/"/g, '\\"'); // eslint-disable-line no-useless-escape
+      const escapedText = cql.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       const cqlQuery = isPlainText ? `text ~ "${escapedText}"` : cql;
 
       console.error('Searching Confluence with CQL:', cqlQuery);
@@ -590,11 +600,15 @@ export class ConfluenceClient {
   ): Promise<void> {
     try {
       // Use V1 API for move operation as it's the documented approach
-      await this.clientV1.put(`/content/${pageId}/move/${position}/${targetParentId}`, {}, {
-        headers: {
-          'Atl-Confluence-With-Admin-Key': true,
-        },
-      });
+      await this.clientV1.put(
+        `/content/${pageId}/move/${position}/${targetParentId}`,
+        {},
+        {
+          headers: {
+            'Atl-Confluence-With-Admin-Key': true,
+          },
+        }
+      );
     } catch (error) {
       if (isAxiosError(error)) {
         console.error('Error moving page:', error.response?.data);
@@ -616,10 +630,7 @@ export class ConfluenceClient {
               'INVALID_REQUEST'
             );
           default:
-            throw new ConfluenceError(
-              `Failed to move page: ${error.message}`,
-              'MOVE_FAILED'
-            );
+            throw new ConfluenceError(`Failed to move page: ${error.message}`, 'MOVE_FAILED');
         }
       }
       throw error;

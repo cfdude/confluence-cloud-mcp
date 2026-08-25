@@ -1,0 +1,42 @@
+# Dependabot keeps this server's dependency tree current between manual sweeps.
+#
+# Security ALERTS and automated security fixes are enabled on the repository itself
+# (repos/.../vulnerability-alerts and .../automated-security-fixes); this file adds
+# scheduled VERSION updates, which those settings do not cover.
+#
+# Majors are deliberately ignored for the toolchain packages below: each needs a
+# migration rather than a bump, and an auto-opened major PR against them is noise.
+# They are tracked as follow-up work instead.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    ignore:
+      # Flat-config migration; `--ext .ts` is removed from `npm run lint` in v10.
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      # Must move in lockstep with eslint 10 (rule renames).
+      - dependency-name: '@typescript-eslint/*'
+        update-types: [version-update:semver-major]
+      # New compiler over 40 strict ES2022/Node16 files; expect fresh type errors.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # ts-jest + useESM + ESM moduleNameMapper; re-greening the suite is the cost.
+      - dependency-name: jest
+        update-types: [version-update:semver-major]
+      - dependency-name: '@types/jest'
+        update-types: [version-update:semver-major]
+      # CI pins Node 20; bump the runtime before the types outrun it.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      # v17 prints "injected env" to STDOUT, which is the JSON-RPC channel in STDIO
+      # mode -- it would corrupt every Claude Desktop session. Needs
+      # `dotenv.config({ quiet: true })` in src/config-loader.ts first.
+      - dependency-name: dotenv
+        update-types: [version-update:semver-major]

@@ -1,0 +1,11 @@
+{
+  // Typecheck-only project: covers src/ AND the test suite + build scripts config.
+  // The build (tsconfig.json) deliberately still emits only src/ -> build/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*", "__tests__/**/*.ts"]
+}

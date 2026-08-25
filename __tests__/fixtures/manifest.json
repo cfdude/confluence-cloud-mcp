@@ -1,0 +1,169 @@
+{
+  "sanitizerVersion": 1,
+  "fixtures": [
+    {
+      "file": "captured-layout-table-macros.xhtml",
+      "origin": "captured",
+      "instance": "onvex",
+      "sourcePageId": "131189",
+      "shape": "real page: layout, table, macros, tasks, images; every heading in a layout cell",
+      "sanitized": true
+    },
+    {
+      "file": "captured-macro-layout-nested-list.xhtml",
+      "origin": "captured",
+      "instance": "onvex",
+      "sourcePageId": "196740",
+      "shape": "layout + nested lists + macros + heading inside ac:rich-text-body",
+      "sanitized": true
+    },
+    {
+      "file": "captured-macro-ordered-list.xhtml",
+      "origin": "captured",
+      "instance": "onvex",
+      "sourcePageId": "15106417",
+      "shape": "structured macro with rich-text-body + ordered list",
+      "sanitized": true
+    },
+    {
+      "file": "composite-root-heading-then-layout.xhtml",
+      "origin": "hand-authored",
+      "shape": "root-level heading followed by an ac:layout whose cells contain headings (does not occur in the corpus; design.md D3)",
+      "sanitized": false
+    },
+    {
+      "file": "heading-in-layout-cells.xhtml",
+      "origin": "hand-authored",
+      "shape": "two layout cells, every heading inside a cell",
+      "sanitized": false
+    },
+    {
+      "file": "heading-in-macro-body.xhtml",
+      "origin": "hand-authored",
+      "shape": "heading inside ac:rich-text-body (the exact shape task 6.1a names)",
+      "sanitized": false
+    },
+    {
+      "file": "heading-in-table-cell.xhtml",
+      "origin": "hand-authored",
+      "shape": "heading inside a table cell (0 such pages exist on onvex; hand-authored by necessity)",
+      "sanitized": false
+    },
+    {
+      "file": "heading-subsections.xhtml",
+      "origin": "hand-authored",
+      "shape": "level-3 headings nested inside a level-2 section, followed by a second level-2 section (task 6.2)",
+      "sanitized": false
+    },
+    {
+      "file": "macro-in-list.xhtml",
+      "origin": "hand-authored",
+      "shape": "structured macro inside an ordered list item",
+      "sanitized": false
+    },
+    {
+      "file": "nested-list.xhtml",
+      "origin": "hand-authored",
+      "shape": "unordered list with nested unordered and ordered children",
+      "sanitized": false
+    },
+    {
+      "file": "ordered-list-inline-markup.xhtml",
+      "origin": "hand-authored",
+      "shape": "ordered list whose items carry inline strong/em markup",
+      "sanitized": false
+    },
+    {
+      "file": "ordered-list.xhtml",
+      "origin": "hand-authored",
+      "shape": "plain ordered list; the task 1.4 defect fixture (converter emits `1. $1`)",
+      "sanitized": false
+    },
+    {
+      "file": "plain.xhtml",
+      "origin": "hand-authored",
+      "shape": "headings, paragraphs, list, inline emphasis, link -- no macros or layouts (must convert as NOT lossy)",
+      "sanitized": false
+    },
+    {
+      "file": "table.xhtml",
+      "origin": "hand-authored",
+      "shape": "table with header and body cells",
+      "sanitized": false
+    },
+    {
+      "file": "unknown-markup.xhtml",
+      "origin": "hand-authored",
+      "shape": "markup the server does not model: an unknown element and a third-party macro",
+      "sanitized": false
+    }
+  ],
+  "syntheticVocabulary": [
+    "adipiscing",
+    "aliqua",
+    "aliquip",
+    "alpha",
+    "amet",
+    "aute",
+    "beta",
+    "chi",
+    "cillum",
+    "commodo",
+    "consectetur",
+    "consequat",
+    "culpa",
+    "cupidatat",
+    "delta",
+    "deserunt",
+    "dolor",
+    "duis",
+    "eiusmod",
+    "elit",
+    "epsilon",
+    "eta",
+    "excepteur",
+    "fugiat",
+    "gamma",
+    "incididunt",
+    "iota",
+    "ipsum",
+    "irure",
+    "kappa",
+    "labore",
+    "laboris",
+    "lambda",
+    "lorem",
+    "magna",
+    "mollit",
+    "mu",
+    "nostrud",
+    "nu",
+    "nulla",
+    "occaecat",
+    "officia",
+    "omega",
+    "omicron",
+    "pariatur",
+    "phi",
+    "pi",
+    "proident",
+    "psi",
+    "quis",
+    "reprehenderit",
+    "rho",
+    "sed",
+    "sigma",
+    "sint",
+    "sit",
+    "sunt",
+    "tau",
+    "tempor",
+    "theta",
+    "ullamco",
+    "upsilon",
+    "veniam",
+    "voluptate",
+    "xi",
+    "zeta"
+  ]
+}

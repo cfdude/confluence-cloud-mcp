@@ -4,7 +4,7 @@
   "parserOptions": {
     "ecmaVersion": 2022,
     "sourceType": "module",
-    "project": "./tsconfig.json"
+    "project": ["./tsconfig.json", "./tsconfig.test.json"]
   },
   "plugins": [
     "@typescript-eslint",
@@ -31,6 +31,10 @@
       }
     ],
     "import/no-unresolved": "off",
+    // axios v1 ships BOTH a default export and a named `create`, so `axios.create()`
+    // -- the documented, correct usage -- trips this rule. It is a false positive for
+    // every default-import-with-namespace-style dependency and has no true positives here.
+    "import/no-named-as-default-member": "off",
     "no-console": ["warn", { "allow": ["error", "warn", "info"] }],
     "no-case-declarations": "warn"
   },
@@ -38,11 +42,27 @@
     "node": true,
     "es6": true
   },
+  "overrides": [
+    {
+      "files": ["__tests__/**/*.ts"],
+      "env": { "jest": true }
+    },
+    {
+      "files": ["scripts/**/*.mjs"],
+      "parserOptions": {
+        "sourceType": "module",
+        "project": null
+      },
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["build", "node_modules", "*.js"],
   "settings": {
     "import/resolver": {
       "node": {
-        "extensions": [".ts", ".js"]
+        "extensions": [".ts", ".js", ".mjs"]
       }
     }
   }

@@ -11,6 +11,26 @@ interface SearchPagesArgs extends ToolArgs {
   cursor?: string;
 }
 
+/**
+ * Read the `cursor` query parameter out of a pagination link.
+ *
+ * The v1 search API returns `_links.next` as a RELATIVE path, so `new URL(next)` throws
+ * `Invalid URL` — which discarded an otherwise successful search response. The base below is
+ * a parsing scaffold only; it is never used to issue a request. Absolute links keep working
+ * because a base is ignored when the input is already absolute.
+ *
+ * Returns undefined when there is no next link, when the link is unparseable, or when it
+ * carries no cursor — pagination degrades rather than failing the whole search.
+ */
+export function extractCursor(next: string | undefined | null): string | undefined {
+  if (!next) return undefined;
+  try {
+    return new URL(next, 'https://placeholder.invalid').searchParams.get('cursor') ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function handleSearchConfluencePages(args: SearchPagesArgs) {
   return withConfluenceContext(
     args,
@@ -42,9 +62,11 @@ export async function handleSearchConfluencePages(args: SearchPagesArgs) {
             lastModified: result.lastModified,
             url: result.content._links.webui,
           })),
-          cursor: results._links.next
-            ? new URL(results._links.next).searchParams.get('cursor')
-            : undefined,
+          // `_links.next` from the v1 search API is RELATIVE (e.g. `/rest/api/search?...`),
+          // and `new URL()` throws `Invalid URL` on a relative string with no base. That threw
+          // away every search response after the request had already succeeded. The base is
+          // only needed to make the string parseable; we read the query off it and discard it.
+          cursor: extractCursor(results._links.next),
           hasMore: !!results._links.next,
           size: results.size,
           totalSize: results.size,

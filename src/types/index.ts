@@ -42,9 +42,14 @@ export interface Space {
 // V2 Page type
 export interface Page {
   id: string;
-  status: {
-    value: 'current' | 'archived' | 'draft' | 'trashed';
-  };
+  /**
+   * The v2 API returns this as a FLAT STRING (`"current"`), not `{ value }`.
+   *
+   * It was previously declared as `{ value: ... }`, so every `page.status.value` read
+   * evaluated to `undefined` and `status` silently vanished from every page response.
+   * Verified 2026-08-25 against onvex page 15106417.
+   */
+  status: 'current' | 'archived' | 'draft' | 'trashed';
   title: string;
   spaceId: string; // Changed to match v2
   parentId?: string;
@@ -214,6 +219,25 @@ export class ConfluenceError extends Error {
   ) {
     super(message);
     this.name = 'ConfluenceError';
+  }
+}
+
+/**
+ * An HTTP-level failure from the Confluence API, with the status preserved.
+ *
+ * The client's axios interceptor used to flatten every API failure to a bare `Error`, which
+ * discarded the status before any caller could see it. Write-safety needs it: telling a
+ * version conflict apart from a permission failure is what makes design.md D12's uniform
+ * conflict shape possible, and a message-only heuristic is not good enough for a write path.
+ */
+export class ConfluenceApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly responseData?: unknown
+  ) {
+    super(message);
+    this.name = 'ConfluenceApiError';
   }
 }
 

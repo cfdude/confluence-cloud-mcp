@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "active": null,
+  "epics": [
+    {
+      "id": "content-format-round-trip",
+      "title": "Fix content round-trip: $1 converter bug, dual-format reads, safe section-scoped + whole-page writes",
+      "priority": "P0",
+      "status": "archived",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [],
+      "reconcileNeeded": false,
+      "startedAt": "2026-08-24T22:29:36.636Z",
+      "gateReview": {
+        "gate1": {
+          "verdict": "pass",
+          "reviewedAt": "2026-08-25T13:44:01.443Z",
+          "note": "fresh-context spec review; 2 rounds FAIL (nested-heading section resolution, splice-offset/heading-retention contradiction, layout container ambiguity, stale bullet rule) then pass on 3rd"
+        },
+        "gate2": {
+          "verdict": "pass",
+          "reviewedAt": "2026-08-25T16:49:25.002Z",
+          "note": "fresh-context impl review of 2652064..HEAD; FAIL on silent section-body deletion when content omitted (reproduced live), fixed + re-reviewed pass; no sibling instance of the bug class"
+        }
+      },
+      "autonomy": {
+        "level": "autonomous",
+        "preAuthorized": [
+          {
+            "category": "filesystem",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "rewrite content-converter.ts and add tokenizer/handler/test files; all under git, fully revertible"
+          },
+          {
+            "category": "network",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "read-only Confluence GETs for fixture capture and corpus validation"
+          },
+          {
+            "action": "create and delete TEST",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "-prefixed pages in onvex APA space for task 7.5:scoped to a test space, prefixed, deleted after; per CLAUDE.md testing guidance"
+          },
+          {
+            "action": "add one parser dependency (parse5 or hand-rolled fallback) per task 2.2",
+            "grantedAt": "2026-08-25T14:50:17.875Z",
+            "reason": "decided empirically by task 2.1; net -2 packages after deps-security-sweep"
+          }
+        ],
+        "context": [
+          "Fixture capture is onvex-only and sanitized; listreports/Highway is never written to fixtures (public repo)",
+          "Corpus validation scripts are one-off, non-committed, emit counts and page ids only",
+          "No writes of any kind to Highway Confluence during this epic",
+          "Rob authorized fully unattended execution through section 6, reporting at integration (section 7)"
+        ],
+        "notifications": []
+      },
+      "completedAt": "2026-08-25T16:49:39.962Z"
+    },
+    {
+      "id": "content-validator",
+      "title": "Pre-submit content validator with actionable error feedback",
+      "priority": "P1",
+      "status": "archived",
+      "role": "epic",
+      "lane": "openspec",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "content-format-round-trip"
+        }
+      ],
+      "reconcileNeeded": false,
+      "startedAt": "2026-08-25T19:31:49.881Z",
+      "gateReview": {
+        "gate2": {
+          "verdict": "pass",
+          "reviewedAt": "2026-08-25T20:00:33.642Z",
+          "note": "fresh-context impl review; FAIL on whole-page construct-loss scope trap for section fragments, fixed with heading/occurrence scoping; re-review FAIL on stale page.note contradicting the scoped verdict, fixed; agreement property verified structurally"
+        }
+      },
+      "completedAt": "2026-08-25T20:00:33.692Z"
+    },
+    {
+      "id": "tool-doc-overhaul",
+      "title": "Rewrite tool descriptions so agents know exactly what format to supply",
+      "priority": "P1",
+      "status": "archived",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "content-format-round-trip"
+        }
+      ],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T19:31:49.834Z"
+    },
+    {
+      "id": "deps-security-sweep",
+      "title": "Drop unused ADF/@atlaskit deps, clear npm advisories and code-scanning alerts",
+      "priority": "P1",
+      "status": "archived",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T19:34:49.548Z"
+    },
+    {
+      "id": "repo-maintainer-cleanup",
+      "title": "Become sole maintainer: drop dead upstream, fix fork framing, repo presentation",
+      "priority": "P2",
+      "status": "archived",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T19:40:36.092Z"
+    },
+    {
+      "id": "test-coverage-baseline",
+      "title": "Establish real test harness beyond the single existing test file",
+      "priority": "P2",
+      "status": "archived",
+      "role": "epic",
+      "lane": "superpowers",
+      "links": [],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T20:04:59.353Z"
+    },
+    {
+      "id": "repair-corrupted-pages",
+      "title": "Repair corrupted pages: 14 repaired, 1 no-op, 1 false positive; 10 handed off to repair-pages-manual-merge",
+      "priority": "P2",
+      "status": "archived",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "content-format-round-trip"
+        }
+      ],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T19:46:01.632Z"
+    },
+    {
+      "id": "page-status-type-fix",
+      "title": "Fix Page.status type: v2 API returns a flat string, interface declares {value}, so status is silently absent from every response",
+      "priority": "P2",
+      "status": "archived",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [],
+      "reconcileNeeded": false,
+      "completedAt": "2026-08-25T19:24:15.679Z"
+    },
+    {
+      "id": "repair-pages-manual-merge",
+      "title": "Manual merge for 10 pages a mechanical repair would damage: 6 macro-body merges, 2 silent-macro-loss (33292313/33325435), 1 archived page (2991587329), 1 needing re-redaction (2988376103)",
+      "priority": "P2",
+      "status": "queued",
+      "role": "epic",
+      "lane": "claude-code",
+      "links": [
+        {
+          "type": "depends-on",
+          "epic": "repair-corrupted-pages"
+        }
+      ],
+      "reconcileNeeded": false
+    }
+  ],
+  "detourStack": [],
+  "revision": 27,
+  "pmVersion": "0.26.0",
+  "platform": "claude-code"
+}
