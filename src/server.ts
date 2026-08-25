@@ -24,6 +24,11 @@ import {
   handleRemoveConfluenceLabel,
   handleSearchConfluencePages,
 } from './handlers/search-label-handlers.js';
+import {
+  handleAppendConfluenceSection,
+  handleInsertConfluenceSection,
+  handleReplaceConfluenceSection,
+} from './handlers/section-handlers.js';
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from './handlers/space-handlers.js';
 import { toolSchemas } from './schemas/tool-schemas.js';
 
@@ -105,6 +110,16 @@ export function createConfluenceServer(): Server {
 
         case 'update_confluence_page':
           return await handleUpdateConfluencePage((args as any) || {});
+
+        // Section editing (spec: page-section-editing)
+        case 'replace_confluence_section':
+          return await handleReplaceConfluenceSection((args as any) || {});
+
+        case 'append_confluence_section':
+          return await handleAppendConfluenceSection((args as any) || {});
+
+        case 'insert_confluence_section':
+          return await handleInsertConfluenceSection((args as any) || {});
 
         case 'move_confluence_page':
           return await handleMoveConfluencePage((args as any) || {});

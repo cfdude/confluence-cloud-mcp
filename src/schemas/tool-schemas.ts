@@ -246,6 +246,155 @@ export const toolSchemas: Record<string, ToolSchema> = {
     },
   },
 
+  replace_confluence_section: {
+    description:
+      'Replace the body of one section of a Confluence page, identified by its heading. The heading itself is retained -- do not re-supply it. Everything outside the section is preserved byte-for-byte, including macros, layouts, and third-party markup. Content must be Confluence storage format (XHTML); read the page with get_confluence_page (format: "storage") and author against that markup.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. If not provided, instance will be determined from page context or defaults.',
+        },
+        pageId: {
+          type: 'string',
+          description: 'ID of the page to edit',
+        },
+        heading: {
+          type: 'string',
+          description:
+            'Text of the heading identifying the section, exactly as get_confluence_page reports it in "outline". Only headings marked addressable can be targeted.',
+        },
+        occurrence: {
+          type: 'number',
+          description:
+            'Optional: which occurrence of a repeated heading to target, as reported in "outline". Required when the heading text matches more than one heading.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Replacement body for the section, in Confluence storage format (XHTML). Do not include the heading.',
+        },
+        expectedVersion: {
+          type: 'number',
+          description:
+            'Required: the page version this edit was built on, as returned by get_confluence_page. The edit fails without modifying the page if someone else has changed it since.',
+        },
+        allowMarkdownContent: {
+          type: 'boolean',
+          description:
+            'Optional: proceed even though the content looks like markdown. Only for prose that genuinely documents markdown syntax outside a code block.',
+        },
+        confirmConstructRemoval: {
+          type: 'boolean',
+          description:
+            'Optional: confirm that removing macros or layouts present in the section being replaced is intended. Does NOT override a markdown rejection.',
+        },
+      },
+      required: ['pageId', 'heading', 'content', 'expectedVersion'],
+    },
+  },
+
+  append_confluence_section: {
+    description:
+      'Append content to the end of one section of a Confluence page, identified by its heading. The existing body of the section is retained ahead of the new content, and everything outside the section is preserved byte-for-byte. Content must be Confluence storage format (XHTML).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. If not provided, instance will be determined from page context or defaults.',
+        },
+        pageId: {
+          type: 'string',
+          description: 'ID of the page to edit',
+        },
+        heading: {
+          type: 'string',
+          description:
+            'Text of the heading identifying the section, exactly as get_confluence_page reports it in "outline". Only headings marked addressable can be targeted.',
+        },
+        occurrence: {
+          type: 'number',
+          description:
+            'Optional: which occurrence of a repeated heading to target, as reported in "outline". Required when the heading text matches more than one heading.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Content to add at the end of the section, in Confluence storage format (XHTML).',
+        },
+        expectedVersion: {
+          type: 'number',
+          description:
+            'Required: the page version this edit was built on, as returned by get_confluence_page. The edit fails without modifying the page if someone else has changed it since.',
+        },
+        allowMarkdownContent: {
+          type: 'boolean',
+          description:
+            'Optional: proceed even though the content looks like markdown. Only for prose that genuinely documents markdown syntax outside a code block.',
+        },
+      },
+      required: ['pageId', 'heading', 'content', 'expectedVersion'],
+    },
+  },
+
+  insert_confluence_section: {
+    description:
+      'Insert a new section immediately after an existing section of a Confluence page. The named section is unchanged and everything outside the insertion point is preserved byte-for-byte. The new heading is supplied as plain text; the body must be Confluence storage format (XHTML).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. If not provided, instance will be determined from page context or defaults.',
+        },
+        pageId: {
+          type: 'string',
+          description: 'ID of the page to edit',
+        },
+        heading: {
+          type: 'string',
+          description:
+            'Text of the heading identifying the section, exactly as get_confluence_page reports it in "outline". Only headings marked addressable can be targeted.',
+        },
+        occurrence: {
+          type: 'number',
+          description:
+            'Optional: which occurrence of a repeated heading to target, as reported in "outline". Required when the heading text matches more than one heading.',
+        },
+        newHeading: {
+          type: 'string',
+          description: "Plain text of the new section's heading. Do not supply markup.",
+        },
+        level: {
+          type: 'number',
+          description:
+            'Optional: heading level (1-6) for the new section. Defaults to the level of the section named by "heading".',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Body of the new section, in Confluence storage format (XHTML). Omit for a heading with no body.',
+        },
+        expectedVersion: {
+          type: 'number',
+          description:
+            'Required: the page version this edit was built on, as returned by get_confluence_page. The edit fails without modifying the page if someone else has changed it since.',
+        },
+        allowMarkdownContent: {
+          type: 'boolean',
+          description:
+            'Optional: proceed even though the content looks like markdown. Only for prose that genuinely documents markdown syntax outside a code block.',
+        },
+      },
+      required: ['pageId', 'heading', 'newHeading', 'expectedVersion'],
+    },
+  },
+
   search_confluence_pages: {
     description: `Search for Confluence content using CQL (Confluence Query Language). Powerful tool for finding pages across spaces.
 
