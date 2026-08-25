@@ -537,8 +537,29 @@ export class ConfluenceClient {
 
   // Label operations
   async getConfluenceLabels(pageId: string): Promise<PaginatedResponse<Label>> {
-    const response = await this.client.get(`/pages/${pageId}/labels`);
-    return response.data;
+    try {
+      const response = await this.client.get(`/pages/${pageId}/labels`);
+      return response.data;
+    } catch (error) {
+      // Mapped for the same reason as add/remove: without it, reading the labels of a page
+      // that does not exist answers with a different error CLASS than adding a label to that
+      // same page, and an agent has to special-case one of the three label tools.
+      const failure = httpFailure(error);
+      if (failure?.status !== undefined) {
+        switch (failure.status) {
+          case 403:
+            throw new ConfluenceError(
+              'Insufficient permissions to read labels',
+              'PERMISSION_DENIED'
+            );
+          case 404:
+            throw new ConfluenceError('Page not found', 'PAGE_NOT_FOUND');
+          default:
+            throw new ConfluenceError(`Failed to get labels: ${failure.message}`, 'UNKNOWN');
+        }
+      }
+      throw error;
+    }
   }
 
   async addConfluenceLabel(pageId: string, label: string, prefix = 'global'): Promise<Label> {

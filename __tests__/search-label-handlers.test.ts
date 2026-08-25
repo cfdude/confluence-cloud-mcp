@@ -276,6 +276,15 @@ describe('handleGetConfluenceLabels', () => {
       message: expect.stringContaining('Failed to get labels: 404 not found'),
     });
   });
+
+  it('maps PAGE_NOT_FOUND to InvalidRequest, as add and remove do', async () => {
+    getConfluenceLabels.mockRejectedValue(new ConfluenceError('Page not found', 'PAGE_NOT_FOUND'));
+
+    await expect(handleGetConfluenceLabels({ pageId: '1' })).rejects.toMatchObject({
+      code: ErrorCode.InvalidRequest,
+      message: expect.stringContaining('Page not found'),
+    });
+  });
 });
 
 describe('handleAddConfluenceLabel', () => {
@@ -335,6 +344,15 @@ describe('handleAddConfluenceLabel', () => {
     await expect(handleAddConfluenceLabel({ pageId: '1', label: '!!' })).rejects.toMatchObject({
       code: ErrorCode.InvalidParams,
       message: expect.stringContaining('Invalid label format'),
+    });
+  });
+
+  it('maps PAGE_NOT_FOUND to InvalidRequest, as get and remove do', async () => {
+    addConfluenceLabel.mockRejectedValue(new ConfluenceError('Page not found', 'PAGE_NOT_FOUND'));
+
+    await expect(handleAddConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
+      code: ErrorCode.InvalidRequest,
+      message: expect.stringContaining('Page not found'),
     });
   });
 

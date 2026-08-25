@@ -581,6 +581,12 @@ describe('429 backoff', () => {
     await pending;
 
     expect(calls).toHaveLength(4);
+    // The retry is re-issued from a SPREAD of the original config. If that lost the
+    // credentials or the headers, every assertion above would still pass and the retry would
+    // 401 in production -- so check the last one carries what the first one did.
+    expect(calls[3].auth).toEqual(calls[0].auth);
+    expect(calls[3].headers['user-agent']).toBe(calls[0].headers['user-agent']);
+    expect(calls[3].fullUrl).toBe(calls[0].fullUrl);
   });
 
   it('gives up on a server stuck at 429 instead of retrying forever', async () => {
@@ -914,6 +920,36 @@ describe('label operations', () => {
     always({ status: 200, data: { results: [] } });
     await client().getConfluenceLabels('15106417');
     expect(calls[0].fullUrl).toBe(`${V2}/pages/15106417/labels`);
+  });
+
+  it.each([
+    [403, 'PERMISSION_DENIED'],
+    [404, 'PAGE_NOT_FOUND'],
+    [500, 'UNKNOWN'],
+  ])('maps a %i on a label READ to %s', async (status, code) => {
+    // Reading labels had no mapping at all, so a missing page answered in a different error
+    // class than adding a label to the same missing page.
+    always({ status, data: { message: 'x' } });
+
+    const error = await client()
+      .getConfluenceLabels('1')
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(ConfluenceError);
+    expect(error.code).toBe(code);
+  });
+
+  it('rethrows a statusless label-read failure untouched', async () => {
+    responder = () => {
+      throw new Error('adapter imploded');
+    };
+
+    const error = await client()
+      .getConfluenceLabels('1')
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(ConfluenceApiError);
+    expect(error).not.toBeInstanceOf(ConfluenceError);
   });
 
   it('adds a label through v2 when v2 accepts it', async () => {

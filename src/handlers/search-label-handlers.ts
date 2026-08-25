@@ -133,6 +133,10 @@ export async function handleGetConfluenceLabels(args: GetLabelsArgs) {
           'Error getting labels:',
           error instanceof Error ? error.message : String(error)
         );
+        // Same answer the other two label tools give for a page that is not there.
+        if (error instanceof ConfluenceError && error.code === 'PAGE_NOT_FOUND') {
+          throw new McpError(ErrorCode.InvalidRequest, `Page not found: ${error.message}`);
+        }
         throw new McpError(
           ErrorCode.InternalError,
           `Failed to get labels: ${error instanceof Error ? error.message : String(error)}`
@@ -192,6 +196,9 @@ export async function handleAddConfluenceLabel(args: AddLabelArgs) {
             throw new McpError(ErrorCode.InvalidRequest, `Label already exists: ${error.message}`);
           } else if (error.code === 'INVALID_LABEL') {
             throw new McpError(ErrorCode.InvalidParams, `Invalid label format: ${error.message}`);
+          } else if (error.code === 'PAGE_NOT_FOUND') {
+            // Same answer the other two label tools give for a page that is not there.
+            throw new McpError(ErrorCode.InvalidRequest, `Page not found: ${error.message}`);
           }
         }
         throw new McpError(
