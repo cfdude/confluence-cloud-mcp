@@ -1,6 +1,10 @@
 name: Security Scans
 
 on:
+  # Manual trigger. Without it this workflow can only be re-run by pushing or waiting for the
+  # cron -- which is how it sat at `disabled_inactivity` from 2026-05-18 with nobody able to
+  # kick it, while its findings went stale against a lockfile that had moved on.
+  workflow_dispatch:
   push:
     branches: [main, dev]
   pull_request:
