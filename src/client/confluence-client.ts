@@ -40,20 +40,47 @@ export class ConfluenceClient {
     this.baseURL = `https://${config.domain}/wiki`;
     this.v2Path = '/api/v2';
 
-    const headers = {
+    const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'User-Agent': config.userAgent || 'Confluence-Cloud-MCP/2.0',
     };
 
+    // OAuth2 is carried as a Bearer header; basic auth uses axios's `auth` option.
+    //
+    // These were previously conflated: `auth` was hardcoded to `{username: email, password:
+    // apiToken}` regardless of `auth.type`, so for an oauth2 config BOTH were undefined and
+    // the request went out with no credentials at all. The access token never reached
+    // Confluence, which answered 401 -- surfaced as a bare "Failed to connect to Confluence
+    // API" with nothing pointing at the cause. The only code that built a Bearer header lived
+    // in utils/confluence-api.ts, which nothing imports.
+    const isOAuth2 = config.auth.type === 'oauth2';
+
+    if (isOAuth2) {
+      if (!config.auth.accessToken) {
+        throw new Error(
+          'OAuth2 authentication requires an access token. Set CONFLUENCE_OAUTH_ACCESS_TOKEN, ' +
+            'or use basic auth with CONFLUENCE_EMAIL and CONFLUENCE_API_TOKEN.'
+        );
+      }
+      headers.Authorization = `Bearer ${config.auth.accessToken}`;
+    } else if (!config.auth.email || !config.auth.apiToken) {
+      throw new Error(
+        'Basic authentication requires both an email and an API token. Set CONFLUENCE_EMAIL ' +
+          'and CONFLUENCE_API_TOKEN, or use OAuth2 with CONFLUENCE_OAUTH_ACCESS_TOKEN.'
+      );
+    }
+
+    /** Omitted entirely for OAuth2 -- an empty `auth` object would strip the Bearer header. */
+    const basicAuth = isOAuth2
+      ? undefined
+      : { username: config.auth.email as string, password: config.auth.apiToken as string };
+
     // Configure for v2 API with domain in URL
     const axiosConfig: any = {
       baseURL: `https://${config.domain}/wiki/api/v2`,
       headers,
-      auth: {
-        username: config.auth.email,
-        password: config.auth.apiToken,
-      },
+      ...(basicAuth ? { auth: basicAuth } : {}),
     };
 
     // Configure v1 client for search and labels
@@ -63,10 +90,7 @@ export class ConfluenceClient {
         ...headers,
         'X-Atlassian-Token': 'no-check',
       },
-      auth: {
-        username: config.auth.email,
-        password: config.auth.apiToken,
-      },
+      ...(basicAuth ? { auth: basicAuth } : {}),
     };
 
     this.client = axios.create(axiosConfig);

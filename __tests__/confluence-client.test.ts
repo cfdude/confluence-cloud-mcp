@@ -217,22 +217,27 @@ describe('constructor', () => {
     expect(calls[1].auth).toEqual({ username: 'user@example.com', password: 'secret-token' });
   });
 
-  it('sends NO usable credentials for an oauth2 config', async () => {
-    // BUG, documented rather than fixed. `ConfluenceConfig` models an oauth2 auth type and
-    // `config.ts` produces one whenever CONFLUENCE_OAUTH_ACCESS_TOKEN is set, but this client
-    // reads only `auth.email` / `auth.apiToken` -- both undefined for oauth2 -- and never
-    // constructs a `Bearer` header. `src/utils/confluence-api.ts` is the only code that builds
-    // one and nothing imports it. OAuth2 is documented but unreachable on the live path.
+  it('sends the OAuth2 access token as a Bearer header', async () => {
+    // Regression. This test previously PINNED the bug: `auth` was hardcoded to
+    // {username: email, password: apiToken} regardless of auth.type, so an oauth2 config sent
+    // NO credentials at all and Confluence answered 401, surfaced as a bare "Failed to connect
+    // to Confluence API". The only Bearer-header builder lived in utils/confluence-api.ts,
+    // which nothing imports. OAuth2 is documented in README.md and CLAUDE.md.
     always({ status: 200, data: {} });
     const c = client({
       auth: { type: 'oauth2', accessToken: 'oauth-access-token' },
     });
 
     await c.getConfluenceSpace('1');
+    await c.searchContentV1('x');
 
-    expect(calls[0].auth).toEqual({ username: undefined, password: undefined });
-    expect(calls[0].headers['authorization']).toBeUndefined();
-    expect(JSON.stringify(calls[0])).not.toContain('oauth-access-token');
+    for (const call of calls) {
+      expect(call.headers['Authorization'] ?? call.headers['authorization']).toBe(
+        'Bearer oauth-access-token'
+      );
+      // An empty `auth` object would make axios strip the Bearer header.
+      expect(call.auth).toBeUndefined();
+    }
   });
 });
 
@@ -1146,5 +1151,24 @@ describe('moveConfluencePage', () => {
       throw new TypeError('adapter imploded');
     };
     await expect(client().moveConfluencePage('1', '2')).rejects.toBeInstanceOf(TypeError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OAuth2 authentication -- regression for a documented feature that never worked
+// ---------------------------------------------------------------------------
+
+describe('authentication credential validation', () => {
+  it('rejects an OAuth2 config with no access token, naming the variable to set', () => {
+    expect(() => client({ auth: { type: 'oauth2' } })).toThrow(/CONFLUENCE_OAUTH_ACCESS_TOKEN/);
+  });
+
+  it('rejects a basic config missing either credential', () => {
+    expect(() => client({ auth: { type: 'basic', email: 'user@example.com' } })).toThrow(
+      /CONFLUENCE_EMAIL and CONFLUENCE_API_TOKEN/
+    );
+    expect(() => client({ auth: { type: 'basic', apiToken: 'api-token' } })).toThrow(
+      /CONFLUENCE_EMAIL and CONFLUENCE_API_TOKEN/
+    );
   });
 });
