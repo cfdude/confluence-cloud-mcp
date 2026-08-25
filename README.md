@@ -302,6 +302,5 @@ Released under the [MIT License](LICENSE).
 ## Credits
 
 This project began as a fork of `aaronsb/confluence-cloud-mcp` by Aaron Bockelie, which laid the
-original foundation for this server. That repository is no longer available, so the link is
-omitted deliberately; this one is now maintained independently by Rob Sherman. Thanks to Aaron
-for the original work.
+original foundation for this server. That repository is no longer available; this one is now
+maintained independently by Rob Sherman. Thanks to Aaron for the original work.
