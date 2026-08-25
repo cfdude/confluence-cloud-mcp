@@ -339,7 +339,16 @@ function markdownToStorage(body) {
   for (const line of lines) {
     if (inCdata) {
       out.push(line);
-      if (line.includes(']]>')) inCdata = false;
+      const close = line.indexOf(']]>');
+      if (close !== -1) {
+        inCdata = false;
+        // The tail after `]]>` is real markup -- and on these pages it is
+        // `]]></ac:plain-text-body></ac:structured-macro>`, i.e. the two closing tags that
+        // bring the depth back to zero. Skipping it leaves the scanner permanently "inside an
+        // element", so every markdown line after the first code macro is passed through
+        // unconverted.
+        depth += tagDelta(line.slice(close + 3)).depth;
+      }
       continue;
     }
 
@@ -356,10 +365,10 @@ function markdownToStorage(body) {
     if (depth > 0 || trimmed.startsWith('<')) {
       closeParagraph();
       settle(null);
-      out.push(line);
-      const delta = tagDelta(line);
-      depth += delta.depth;
-      if (delta.opensCdata) inCdata = true;
+      const scan = scanMarkup(line);
+      out.push(scan.opensCdata || line.includes(']]>') ? line : convertInlineInTextNodes(line));
+      depth += tagDelta(scan.markup).depth;
+      if (scan.opensCdata) inCdata = true;
       continue;
     }
 
@@ -403,18 +412,73 @@ function markdownToStorage(body) {
   return out.join('\n');
 }
 
-/** Net element-depth change contributed by one line, plus whether it opens a CDATA section. */
-function tagDelta(line) {
+/**
+ * `**strong**` left inside otherwise-valid XHTML text nodes.
+ *
+ * A distinct corruption shape from a wholly-markdown body: the block structure survived (real
+ * `<p>`, `<li>`, `<td>` elements) and only the inline emphasis was written as markdown. It
+ * cannot be reached by the line scanner, which copies anything inside markup through verbatim,
+ * so it is handled here -- tag by tag, converting only the text BETWEEN tags.
+ *
+ * Only `**` is converted. `*` and `` ` `` are left alone: inside arbitrary XHTML text a lone
+ * asterisk is as likely to be `SELECT *` as emphasis, and a wrong guess here edits prose.
+ * Content of `code`, `pre` and `ac:plain-text-body` is skipped for the same reason
+ * write-safety.ts excludes it -- markdown syntax there is the subject, not the formatting.
+ */
+const OPAQUE_TEXT_ELEMENTS = new Set(['code', 'pre', 'ac:plain-text-body']);
+
+function convertInlineInTextNodes(line) {
+  const strongOnly = (text) => text.replace(/\*\*([^\s*][^*]*?)\*\*/g, '<strong>$1</strong>');
+  let out = '';
+  let opaque = 0;
+  let last = 0;
+  const tags = /<[^>]*>/g;
+  let match;
+  while ((match = tags.exec(line)) !== null) {
+    const text = line.slice(last, match.index);
+    out += opaque > 0 ? text : strongOnly(text);
+    out += match[0];
+    const name = (/^<\/?([a-zA-Z][-a-zA-Z0-9:]*)/.exec(match[0]) || [])[1];
+    if (name && OPAQUE_TEXT_ELEMENTS.has(name.toLowerCase()) && !match[0].endsWith('/>')) {
+      opaque += match[0].startsWith('</') ? -1 : 1;
+      opaque = Math.max(opaque, 0);
+    }
+    last = match.index + match[0].length;
+  }
+  const tail = line.slice(last);
+  return out + (opaque > 0 ? tail : strongOnly(tail));
+}
+
+/**
+ * Split a line into the part that is MARKUP and the part that is CDATA text.
+ *
+ * `<` inside a CDATA section is data, not a tag, so counting tags across it corrupts the depth
+ * -- and a code macro body is exactly where angle brackets appear unescaped.
+ */
+function scanMarkup(line) {
+  let markup = '';
+  let rest = line;
+  for (;;) {
+    const open = rest.indexOf('<![CDATA[');
+    if (open === -1) return { markup: markup + rest, opensCdata: false };
+    markup += rest.slice(0, open);
+    const close = rest.indexOf(']]>', open);
+    if (close === -1) return { markup, opensCdata: true };
+    rest = rest.slice(close + 3);
+  }
+}
+
+/** Net element-depth change contributed by a run of markup. */
+function tagDelta(markup) {
   let depth = 0;
   const tag = /<(\/?)([a-zA-Z][-a-zA-Z0-9:]*)[^>]*?(\/?)>/g;
   let match;
-  while ((match = tag.exec(line)) !== null) {
+  while ((match = tag.exec(markup)) !== null) {
     const [, closing, name, selfClosing] = match;
     if (VOID_ELEMENTS.has(name.toLowerCase()) || selfClosing === '/') continue;
     depth += closing === '/' ? -1 : 1;
   }
-  const opensCdata = line.includes('<![CDATA[') && !line.includes(']]>');
-  return { depth: Math.max(depth, -Infinity), opensCdata };
+  return { depth };
 }
 
 /**
@@ -571,10 +635,19 @@ async function loadPreflight() {
   return import(built);
 }
 
-/** Text the repair must not have dropped: every substantive line of the pre-repair body. */
+/**
+ * Text the repair dropped that was NOT itself corruption.
+ *
+ * The placeholder paragraph is a text line by every measure, and replacing it with the macro
+ * it stands for necessarily removes it. Reporting that as lost content would make the one
+ * check that matters -- did real prose disappear -- fire on every successful splice.
+ */
 function lostText(before, after) {
   const afterLines = new Set(textLines(after));
-  return textLines(before).filter((l) => !afterLines.has(l));
+  return textLines(before).filter(
+    (line) =>
+      !afterLines.has(line) && !/\[confluence macro:/.test(line) && !/(?:^|\s)\$1(?!\d)/.test(line)
+  );
 }
 
 // ---------------------------------------------------------------------------
