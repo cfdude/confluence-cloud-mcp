@@ -175,7 +175,7 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 
 > **Note for AI Assistants**: If you're an AI assistant like Cline trying to install this MCP server, please refer to the [llms-install.md](llms-install.md) file for detailed installation instructions.
 
-## Available Tools (13)
+## Available Tools (16)
 
 ### Instance Management
 - `list_confluence_instances`: List all configured Confluence instances
@@ -189,10 +189,33 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 - `get_confluence_page`: Get a specific page with its content (includes Markdown conversion)
 - `find_confluence_page`: Find a page by title across spaces
 - `create_confluence_page`: Create a new page in a space
-- `update_confluence_page`: Update an existing page
+- `update_confluence_page`: Replace a whole page's content (title optional and preserved when omitted; the server resolves the version)
 - `move_confluence_page`: Move a page to a new parent or space
 
-The `get_confluence_page` tool automatically converts Confluence storage format content to Markdown, making it easier to work with page content. The conversion handles:
+### Section Tools
+- `replace_confluence_section`: Replace the body of one section, identified by its heading
+- `append_confluence_section`: Append content to the end of one section
+- `insert_confluence_section`: Insert a new section after an existing one
+
+Section edits splice a single section by computed byte offsets, so every byte outside the edited
+section -- macros, layouts and third-party app markup included -- is carried through unchanged
+and never parsed. They require `expectedVersion` (returned by `get_confluence_page`) so an edit
+cannot splice into content that changed since it was read.
+
+### Reading vs writing content
+
+`get_confluence_page` and `find_confluence_page` accept `format`: `markdown`, `storage`, or
+`both` (default). Markdown is a **lossy rendering meant for reading** -- the response sets
+`lossy` when the page contains macros or layouts markdown cannot represent, and returns a
+heading `outline` marking which headings can be targeted by a section edit.
+
+**Writes must supply storage format (XHTML), not markdown.** Confluence stores markdown syntax
+literally rather than rendering it, so submitted markdown is rejected with guidance to read the
+page with `format: "storage"` and author against that markup. Writes are also rejected when they
+would drop macros or layouts present in the current page (unless the removal is explicitly
+confirmed), or when they carry conversion artifacts from a lossy read.
+
+The markdown conversion handles:
 - Headers (h1-h6)
 - Lists (ordered and unordered)
 - Links
