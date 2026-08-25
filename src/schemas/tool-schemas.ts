@@ -437,6 +437,53 @@ Read the page with get_confluence_page (format: "storage") first, model your mar
     },
   },
 
+  validate_confluence_content: {
+    description: `Check content against every write-safety rule BEFORE submitting it. Read-only -- this tool never modifies a page, and validating reserves nothing.
+
+The cheap pre-flight for create_confluence_page, update_confluence_page and the three section tools. Those tools run the SAME checks in the same order and reject on the FIRST failure, so a rejected write reveals one problem per attempt. This runs the identical pipeline and reports ALL of them at once, each with what is wrong, where, and the concrete corrective action. Fix everything, validate again, then write.
+
+"content" is the Confluence storage format (XHTML) you intend to send -- a whole page body, or the fragment you would hand to a section tool. Never markdown.
+
+WITHOUT pageId, no request is made to Confluence at all, and four checks run: markup that is not well-formed; markdown submitted as storage; this server's "[Confluence Macro: ...]" placeholder text; "$1" markdown-conversion artifacts. That is the COMPLETE verdict for create_confluence_page, append_confluence_section and insert_confluence_section -- none of them removes anything.
+
+WITH pageId, the page is read (and only read) so one further check runs: whether the content drops macros or layouts the page currently has. That comparison is whole-page, exactly matching update_confluence_page. OMIT pageId when validating a fragment for replace_confluence_section -- that tool scopes the same check to the section being replaced, so a whole-page comparison would report macros elsewhere on the page as lost.
+
+Returns "valid" as a boolean for the common case, the checks that ran, any that did not and why, and "problems" ordered as the write path would hit them (the first is the one a write would be rejected on). With pageId it also returns the page's current version, ready to pass as expectedVersion.
+
+A clean result is about CONTENT. A write can still fail afterwards on a stale expectedVersion if someone else edits the page in between.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: 'string',
+          description:
+            'Optional: Specific Confluence instance to use. Only consulted when pageId is supplied; without a pageId this tool contacts no instance at all.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Required. The Confluence storage format (XHTML) you intend to write -- a whole page body or a section fragment. Pass an explicit empty string to validate empty content; omitting the field is an error, not empty content.',
+        },
+        pageId: {
+          type: 'string',
+          description:
+            "Optional: the page this content is destined for. Supply it to also check, against that page's current body, whether the write would drop macros or layouts -- the one check that needs a comparison target. Omit it for create_confluence_page, for append/insert section edits, and for replace_confluence_section fragments (that tool scopes the same check to the replaced section at write time).",
+        },
+        allowMarkdownContent: {
+          type: 'boolean',
+          description:
+            'Optional: mirror the flag you intend to pass to the write. It suppresses the markdown check here exactly as it does on the write path, so the verdict matches the write you actually plan to make. Echoed back under "overridesApplied" so a waived check is never mistaken for a clean one.',
+        },
+        confirmConstructRemoval: {
+          type: 'boolean',
+          description:
+            'Optional: mirror the flag you intend to pass to the write. It waives the construct-removal check here exactly as it does on the write path. Echoed back under "overridesApplied".',
+        },
+      },
+      required: ['content'],
+    },
+  },
+
   search_confluence_pages: {
     description: `Search for Confluence content using CQL (Confluence Query Language). Powerful tool for finding pages across spaces.
 

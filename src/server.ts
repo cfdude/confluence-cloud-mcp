@@ -30,6 +30,7 @@ import {
   handleReplaceConfluenceSection,
 } from './handlers/section-handlers.js';
 import { handleGetConfluenceSpace, handleListConfluenceSpaces } from './handlers/space-handlers.js';
+import { handleValidateConfluenceContent } from './handlers/validation-handlers.js';
 import { toolSchemas } from './schemas/tool-schemas.js';
 
 /**
@@ -120,6 +121,10 @@ export function createConfluenceServer(): Server {
 
         case 'insert_confluence_section':
           return await handleInsertConfluenceSection((args as any) || {});
+
+        // Pre-submit validation (read-only; shares the write path's preflight pipeline)
+        case 'validate_confluence_content':
+          return await handleValidateConfluenceContent((args as any) || {});
 
         case 'move_confluence_page':
           return await handleMoveConfluencePage((args as any) || {});
