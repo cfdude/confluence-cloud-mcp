@@ -176,7 +176,7 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 
 > **Note for AI Assistants**: If you're an AI assistant like Cline trying to install this MCP server, please refer to the [llms-install.md](llms-install.md) file for detailed installation instructions.
 
-## Available Tools (16)
+## Available Tools (17)
 
 ### Instance Management
 - `list_confluence_instances`: List all configured Confluence instances
@@ -197,6 +197,20 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
 - `replace_confluence_section`: Replace the body of one section, identified by its heading (the heading itself is retained)
 - `append_confluence_section`: Append content to the end of one section
 - `insert_confluence_section`: Insert a new section after an existing one (`newHeading` is plain text and is escaped for you)
+
+### Validation Tools
+- `validate_confluence_content`: Check content against every write-safety rule **before**
+  submitting it, without writing anything. Runs the same preflight pipeline the write tools
+  run, but reports **all** problems instead of stopping at the first -- each with what is
+  wrong, where, and the corrective action.
+
+  Without `pageId` it makes no request to Confluence at all and runs the four
+  content-intrinsic checks (well-formedness, markdown-as-storage, macro placeholder, `$1`
+  artifacts) -- the complete verdict for `create_confluence_page` and for append/insert
+  section edits. With `pageId` the page is read (only read) and construct-loss also runs,
+  whole-page, matching `update_confluence_page`. Omit `pageId` when validating a
+  `replace_confluence_section` fragment: that tool scopes the same check to the replaced
+  section, so a whole-page comparison would report losses that are not real.
 
 **Prefer these over `update_confluence_page` for any partial edit.** A section edit splices a
 single span by computed byte offsets, so every byte outside the edited section -- macros,

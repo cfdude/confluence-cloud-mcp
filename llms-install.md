@@ -148,15 +148,35 @@ If you encounter Docker-related issues:
 
 Once installed, the following tools will be available:
 
+### Instance Tools
+- `list_confluence_instances`: List the configured Confluence instances
+
 ### Space Tools
 - `list_confluence_spaces`: List all spaces in Confluence
 - `get_confluence_space`: Get details about a specific space
 
 ### Page Tools
 - `list_confluence_pages`: List pages in a space
-- `get_confluence_page`: Get a specific page with its content (includes Markdown conversion)
+- `get_confluence_page`: Read a page. Returns `content` (markdown, for READING), `storage`
+  (the raw XHTML a write must be authored against), `version`, a `lossy` flag, and a heading
+  `outline`
+- `find_confluence_page`: Find a page by title
 - `create_confluence_page`: Create a new page in a space
-- `update_confluence_page`: Update an existing page
+- `update_confluence_page`: Replace a whole page's content (title optional and preserved when
+  omitted; the server resolves the version)
+- `move_confluence_page`: Move a page to a new parent or space
+
+### Section Tools
+- `replace_confluence_section`: Replace the body of one section, identified by its heading
+- `append_confluence_section`: Append content to the end of one section
+- `insert_confluence_section`: Insert a new section after an existing one
+
+Prefer these over `update_confluence_page` for a partial edit: they splice one section by byte
+offsets, so macros and layouts outside it are preserved exactly.
+
+### Validation Tools
+- `validate_confluence_content`: Check content against every write-safety rule before
+  submitting it, reporting all problems at once. Never writes.
 
 ### Search & Label Tools
 - `search_confluence_pages`: Search Confluence content using CQL
