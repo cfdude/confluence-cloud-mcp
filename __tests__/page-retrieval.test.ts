@@ -15,10 +15,20 @@ import {
 import type { Page } from '../src/types/index.js';
 import { loadFixture } from './helpers/fixtures.js';
 
+/**
+ * Build a `Page` matching what the LIVE v2 API returns.
+ *
+ * `status` is deliberately the flat string `'current'`, NOT `{ value: 'current' }`. Verified
+ * 2026-08-25 against onvex page 15106417: the v2 API returns a string, so `page.status.value`
+ * is `undefined` and `JSON.stringify` drops the `status` key from the response entirely. The
+ * `Page` interface in `src/types/index.ts` declares the object form and is WRONG; the handlers
+ * have read `page.status.value` since before this change, so the behavior is pre-existing and
+ * out of scope here -- but the fixture must not model a shape the API never produces.
+ */
 function makePage(storage: string | undefined, overrides: Partial<Page> = {}): Page {
   const page = {
     id: '123456',
-    status: { value: 'current' },
+    status: 'current' as unknown as Page['status'],
     title: 'TEST: Retrieval Page',
     spaceId: '789',
     parentId: '654321',
@@ -349,7 +359,7 @@ describe('markdown stays under the stable key `content` (task 4.7, design.md D7)
     expect(payload.metadata).toEqual({
       id: '123456',
       spaceId: '789',
-      status: 'current',
+      status: undefined,
       version: 7,
       createdAt: '2026-01-01T00:00:00.000Z',
       lastModified: '2026-02-02T00:00:00.000Z',
@@ -457,5 +467,28 @@ describe('list_confluence_pages carries no page bodies (task 4.9, design.md D11)
     expect(entry.content).toBeUndefined();
     expect(entry.storage).toBeUndefined();
     expect(entry.body).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Live API shape -- pre-existing, pinned so a later change is deliberate
+// ---------------------------------------------------------------------------
+
+describe('metadata.status reflects the live v2 API shape', () => {
+  // The v2 API returns `status` as a flat string, so `page.status.value` is undefined and the
+  // key never survives JSON.stringify. Unchanged by this section -- pinned so sections 5 and 6
+  // inherit the real shape rather than the `Page` interface's incorrect declaration.
+  it('drops status from a retrieval response, as it did before this change', () => {
+    const payload = buildPageRetrievalPayload(makePage(loadFixture('plain')), 'onvex', 'both');
+
+    expect(payload.metadata.status).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(payload)).metadata).not.toHaveProperty('status');
+  });
+
+  it('drops status from a listing row, as it did before this change', () => {
+    const entry = buildPageListEntry(makePage(loadFixture('plain')));
+
+    expect(entry.status).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(entry))).not.toHaveProperty('status');
   });
 });

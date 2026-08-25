@@ -33,6 +33,11 @@ describe('headingOutline -- levels and document order (task 4.6)', () => {
     expect(outline[0]).toMatchObject({ level: 3, text: 'A bold idea' });
   });
 
+  it('treats a line break as visible separation', () => {
+    expect(headingOutline('<h2>A<br/>B</h2>')[0].text).toBe('A B');
+    expect(headingOutline('<h2>A<br />B</h2>')[0].text).toBe('A B');
+  });
+
   it('excludes text inside a nested macro, leaving a macro-only heading empty', () => {
     const source =
       '<h2><ac:structured-macro ac:name="status">' +
@@ -40,6 +45,17 @@ describe('headingOutline -- levels and document order (task 4.6)', () => {
       '</ac:structured-macro></h2>';
 
     expect(headingOutline(source)[0].text).toBe('');
+  });
+
+  it('under-reports a heading whose text sits inside an ac: link body -- accepted, documented', () => {
+    // The exclusion rule is "every ac:/ri: descendant"; deciding which namespaced elements
+    // carry visible heading text would be macro modelling. Pinned so section 6 inherits the
+    // behavior knowingly and any change to it is deliberate.
+    const source =
+      '<h2>See <ac:link><ac:plain-text-link-body><![CDATA[the page]]>' +
+      '</ac:plain-text-link-body></ac:link></h2>';
+
+    expect(headingOutline(source)[0].text).toBe('See');
   });
 });
 

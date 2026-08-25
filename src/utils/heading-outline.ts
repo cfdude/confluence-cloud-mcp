@@ -86,6 +86,15 @@ export function foldHeadingText(text: string): string {
  * Macro interiors are opaque per the Non-Goals, so a status macro's parameter values are not
  * part of the heading's text. A heading whose entire content is a macro therefore has text
  * `''` -- deliberate, and it means section editing cannot reach that heading by text.
+ *
+ * KNOWN UNDER-REPORT, accepted deliberately: the rule is "every `ac:`/`ri:` descendant", so
+ * `<h2>See <ac:link>...<ac:plain-text-link-body><![CDATA[the page]]></...></ac:link></h2>`
+ * yields `See` rather than `See the page`. Deciding WHICH namespaced elements carry visible
+ * heading text is macro modelling, which design.md's Non-Goals rule out, and an allowlist
+ * would drift. It degrades safely: this same extraction feeds both the outline a caller reads
+ * and the text section 6 matches against, so a caller can always pass back what it was shown,
+ * and any collision surfaces as "supply an occurrence index" rather than a wrong-section
+ * splice. Section 6 may revisit it with a fixture -- deliberately, not by accident.
  */
 function insideNamespacedChild(
   result: TokenizeResult,
@@ -116,6 +125,11 @@ function headingText(result: TokenizeResult, element: StorageElement): string {
   for (let i = from; i < to; i += 1) {
     const token = result.tokens[i];
     if (!token || token.start >= element.contentEnd) break;
+    if (token.type === 'element' && token.name === 'br') {
+      // A line break is visible separation; without this `<h2>A<br/>B</h2>` reads as `AB`.
+      parts.push(' ');
+      continue;
+    }
     if (token.type !== 'text' && token.type !== 'cdata') continue;
     if (insideNamespacedChild(result, token.parentElement, element.index)) continue;
     parts.push(token.type === 'cdata' ? cdataText(token.raw) : decodeEntities(token.raw));
