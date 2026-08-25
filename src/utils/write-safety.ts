@@ -209,6 +209,15 @@ export interface MarkdownSignal {
   label: string;
   /** The matched line or fragment, trimmed and truncated, for the error message. */
   sample: string;
+  /**
+   * The whole projection LINE the match sits on, for `validate_confluence_content`.
+   *
+   * `sample` is the regex match and nothing more -- a heading match is the literal `"## H"`,
+   * because the pattern stops at the first non-space character. That is fine in the rejection
+   * message, where the label already says what was found, and useless as a location for an
+   * agent trying to find the offending line in its own draft.
+   */
+  line: string;
 }
 
 /** Every markdown signal present in the projection, high-confidence and ambiguous alike. */
@@ -222,6 +231,7 @@ export function detectMarkdownSignals(projection: string): MarkdownSignal[] {
       confidence: signal.confidence,
       label: signal.label,
       sample: sample(match[0]),
+      line: sample(lineAt(projection, match.index)),
     });
   }
   return found;
@@ -256,6 +266,13 @@ const ARTIFACT_BARE_TEXT = /[0-9]+\.\s*\$1(?![0-9])/;
 /** The placeholder a list item collapses to when the old converter lost its content. */
 const ARTIFACT_LIST_ITEM = '$1';
 
+/** The whole line `index` falls on, unbounded by the match that found it. */
+function lineAt(text: string, index: number): string {
+  const start = text.lastIndexOf('\n', index) + 1;
+  const end = text.indexOf('\n', index);
+  return text.slice(start, end === -1 ? text.length : end);
+}
+
 function sample(value: string): string {
   const collapsed = value.replace(/\s+/g, ' ').trim();
   return collapsed.length > 60 ? `${collapsed.slice(0, 60)}...` : collapsed;
@@ -286,9 +303,29 @@ export const PREFLIGHT_CHECK_ORDER: readonly PreflightCheckName[] = [
   'construct-loss',
 ];
 
+/**
+ * Where a problem is, when it can be located.
+ *
+ * `offset` is an offset into the SUBMITTED content and is supplied only by well-formedness,
+ * which works on the raw source. The other checks run over the text projection, which
+ * deliberately does not preserve offsets (see `buildTextProjection`), so they quote a
+ * `snippet` instead of inventing a position.
+ */
+export interface PreflightLocation {
+  offset?: number;
+  snippet?: string;
+}
+
 export interface PreflightFailure {
   check: PreflightCheckName;
+  /**
+   * The prose an agent is shown when a write is rejected. Load-bearing and asserted against;
+   * `remedy` and `location` are added ALONGSIDE it, never carved out of it.
+   */
   message: string;
+  location?: PreflightLocation;
+  /** The single corrective action, as one imperative sentence a machine can act on. */
+  remedy: string;
 }
 
 export interface PreflightContext {
@@ -329,6 +366,13 @@ function checkWellFormedness(ctx: PreflightContext): PreflightFailure | null {
       `Submitted ${ctx.label} is not well-formed Confluence storage format: ${detail}${more}. ` +
       `${NOT_MODIFIED} Correct the markup -- every element must be closed and properly ` +
       `nested -- and retry.`,
+    location: {
+      offset: errors[0]!.start,
+      snippet: sample(ctx.content.slice(errors[0]!.start, errors[0]!.start + 60)),
+    },
+    remedy:
+      `Close every element and nest them properly at offset ${errors[0]!.start} ` +
+      `(${errors[0]!.message}), then validate again.`,
   };
 }
 
@@ -350,6 +394,12 @@ function checkMarkdown(ctx: PreflightContext): PreflightFailure | null {
       `${described}. Confluence storage format is XHTML -- markdown syntax stored in it ` +
       `renders as literal characters. ${RETRIEVE_STORAGE} ${NOT_MODIFIED} If this prose ` +
       `genuinely contains markdown-like syntax, set allowMarkdownContent: true.`,
+    location: { snippet: high[0]!.line },
+    remedy:
+      `Rewrite the markdown as XHTML -- "## Heading" becomes <h2>Heading</h2>, "**bold**" ` +
+      `becomes <strong>bold</strong>, a "\`\`\`" fence becomes <ac:structured-macro ` +
+      `ac:name="code">. ${RETRIEVE_STORAGE} Only if the prose genuinely documents markdown ` +
+      `syntax, re-run with allowMarkdownContent: true.`,
   };
 }
 
@@ -367,13 +417,18 @@ function checkMacroPlaceholder(ctx: PreflightContext): PreflightFailure | null {
       `output; writing it back replaces a working macro with literal text. ` +
       `${RETRIEVE_STORAGE} ${NOT_MODIFIED} If you are documenting the placeholder format, ` +
       `put it inside a <code> or <pre> block.`,
+    location: { snippet: sample(line ?? '') },
+    remedy:
+      `Replace the placeholder text with the macro's real <ac:structured-macro> markup, ` +
+      `copied from the page read with format: 'storage'. If you are documenting the ` +
+      `placeholder itself, wrap it in <code> or <pre>.`,
   };
 }
 
 function checkConversionArtifact(ctx: PreflightContext): PreflightFailure | null {
   const bare = ARTIFACT_BARE_TEXT.exec(ctx.projection);
   if (bare) {
-    return artifactFailure(ctx, `the text ${JSON.stringify(sample(bare[0]))}`);
+    return artifactFailure(ctx, `the text ${JSON.stringify(sample(bare[0]))}`, sample(bare[0]));
   }
 
   // The `<li>` form. Its text is read with the SAME code-region exclusion as the bare-text
@@ -382,13 +437,13 @@ function checkConversionArtifact(ctx: PreflightContext): PreflightFailure | null
   for (const element of ctx.tokenized.elements) {
     if (element.name !== 'li') continue;
     if (elementText(ctx.tokenized, element.index).trim() !== ARTIFACT_LIST_ITEM) continue;
-    return artifactFailure(ctx, 'a list item whose entire text is "$1"');
+    return artifactFailure(ctx, 'a list item whose entire text is "$1"', '<li>$1</li>');
   }
 
   return null;
 }
 
-function artifactFailure(ctx: PreflightContext, detail: string): PreflightFailure {
+function artifactFailure(ctx: PreflightContext, detail: string, snippet: string): PreflightFailure {
   return {
     check: 'conversion-artifact',
     message:
@@ -396,6 +451,11 @@ function artifactFailure(ctx: PreflightContext, detail: string): PreflightFailur
       `the signature of content that was read through a lossy converter and is now being ` +
       `written back; the original list text is already gone from it. ${RETRIEVE_STORAGE} ` +
       `${NOT_MODIFIED}`,
+    location: { snippet },
+    remedy:
+      `Do not repair the "$1" in place -- the text it replaced is gone. Re-read the page with ` +
+      `format: 'storage', take the real list markup from it, and rebuild the edit on that. If ` +
+      `the "$1" is genuine content (a bind parameter, a shell variable), wrap it in <code>.`,
   };
 }
 
@@ -438,6 +498,11 @@ function checkConstructLoss(ctx: PreflightContext): PreflightFailure | null {
       `${lost.join('; ')}. Markdown cannot represent macros or layouts, so this is what a ` +
       `write built from a markdown read looks like. ${RETRIEVE_STORAGE} ${NOT_MODIFIED} If ` +
       `the removal is intended, set confirmConstructRemoval: true.`,
+    location: { snippet: lost[0]! },
+    remedy:
+      `Re-read the page with format: 'storage', copy the missing construct markup into the ` +
+      `content at the position it belongs, and validate again. Only if the removal is ` +
+      `deliberate, re-run with confirmConstructRemoval: true.`,
   };
 }
 
@@ -487,12 +552,22 @@ export interface PreflightInput {
 }
 
 /**
- * Run every preflight check in `PREFLIGHT_CHECK_ORDER` and return the FIRST failure.
+ * The one pipeline both callers run (task: content-validator).
  *
- * Async only because of the lazy current-content resolver; with a string (or nothing) it never
- * awaits anything real.
+ * `stopAtFirstFailure` is the ONLY difference between the write path and the validator. It is
+ * a parameter rather than a second implementation on purpose: a validator that could report
+ * "clean" for content the write path then rejects is worse than no validator at all, so there
+ * is deliberately no second place where the check list, the check order, or the contexts the
+ * checks see could drift.
+ *
+ * Note what the flag does NOT change: checks still run in `PREFLIGHT_CHECK_ORDER`, and the
+ * returned array is in that order, so `failures[0]` is always the same failure the
+ * short-circuiting write path would have reported.
  */
-export async function preflight(input: PreflightInput): Promise<PreflightFailure | null> {
+async function runPreflightPipeline(
+  input: PreflightInput,
+  stopAtFirstFailure: boolean
+): Promise<PreflightFailure[]> {
   const tokenized = input.tokenized ?? tokenize(input.content);
   const ctx: PreflightContext = {
     content: input.content,
@@ -504,9 +579,13 @@ export async function preflight(input: PreflightInput): Promise<PreflightFailure
     label: input.label ?? 'content',
   };
 
+  const failures: PreflightFailure[] = [];
+
   for (const name of PREFLIGHT_CHECK_ORDER) {
     if (name === 'construct-loss' && input.currentContent !== undefined) {
-      // Resolved HERE, not earlier: the checks before this one need no network at all.
+      // Resolved HERE, not earlier: the checks before this one need no network at all. With
+      // `stopAtFirstFailure`, an earlier failure means this is never reached and no request is
+      // made -- the property the whole-page write path depends on.
       const currentContent =
         typeof input.currentContent === 'function'
           ? await input.currentContent()
@@ -516,10 +595,37 @@ export async function preflight(input: PreflightInput): Promise<PreflightFailure
     }
 
     const failure = runPreflightCheck(name, ctx);
-    if (failure) return failure;
+    if (failure) {
+      failures.push(failure);
+      if (stopAtFirstFailure) return failures;
+    }
   }
 
-  return null;
+  return failures;
+}
+
+/**
+ * Run every preflight check in `PREFLIGHT_CHECK_ORDER` and return the FIRST failure.
+ *
+ * Async only because of the lazy current-content resolver; with a string (or nothing) it never
+ * awaits anything real.
+ */
+export async function preflight(input: PreflightInput): Promise<PreflightFailure | null> {
+  const failures = await runPreflightPipeline(input, true);
+  return failures[0] ?? null;
+}
+
+/**
+ * Every failure, in `PREFLIGHT_CHECK_ORDER`, rather than only the first.
+ *
+ * This is what `validate_confluence_content` reports. The write path must NOT use it: it is
+ * strictly more work (the construct-loss resolver runs even when an earlier check already
+ * failed, which for a write would mean a Confluence request the rejection did not need), and
+ * a write has nothing to do with the second failure anyway. The agreement property tests rely
+ * on is `preflightAll(x)[0] === preflight(x)`.
+ */
+export async function preflightAll(input: PreflightInput): Promise<PreflightFailure[]> {
+  return runPreflightPipeline(input, false);
 }
 
 /** As `preflight`, but throws the failure as an `McpError` the tool layer returns verbatim. */

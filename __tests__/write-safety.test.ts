@@ -10,6 +10,7 @@ import {
   detectMarkdownSignals,
   isVersionConflictResponse,
   preflight,
+  preflightAll,
   resolveWriteVersion,
   versionConflictError,
   type PreflightInput,
@@ -567,5 +568,119 @@ describe('classifying Confluence’s own version rejection (task 5.15)', () => {
     ).toBe(false);
     expect(isVersionConflictResponse(new Error('socket hang up'))).toBe(false);
     expect(isVersionConflictResponse('nope')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// preflightAll -- the validator's entry point (spec: content-validator)
+// ---------------------------------------------------------------------------
+
+/**
+ * `validate_confluence_content` must never disagree with a write.
+ *
+ * The two share `runPreflightPipeline` and differ only in whether they stop at the first
+ * failure, so agreement is structural rather than tested into existence. These assertions
+ * exist to make a future divergence -- a reordered check list, a check that behaves
+ * differently once a prior one has already failed -- fail loudly rather than silently produce
+ * a validator that blesses content the write path rejects.
+ */
+describe('preflightAll agrees with the write path (spec: content-validator)', () => {
+  const DIRTY: ReadonlyArray<[string, PreflightInput]> = [
+    ['not well-formed', { content: '<p>unclosed' }],
+    ['markdown', { content: '<p>## Summary</p>' }],
+    ['macro placeholder', { content: '<p>[Confluence Macro: toc (minLevel: 2)]</p>' }],
+    ['conversion artifact', { content: '<p>1. $1</p>' }],
+    ['construct loss', { content: '<p>Body</p>', currentContent: MACRO_PAGE }],
+    [
+      'several at once',
+      {
+        content: '<p>## Heading</p><p>[Confluence Macro: toc (x)]</p><p>1. $1</p><b>dangling',
+        currentContent: MACRO_PAGE,
+      },
+    ],
+    ['clean against a macro page', { content: MACRO_PAGE, currentContent: MACRO_PAGE }],
+  ];
+
+  it.each(DIRTY)('reports the same verdict as preflight: %s', async (_label, input) => {
+    const all = await preflightAll(input);
+    const first = await preflight(input);
+
+    expect(all[0]?.check ?? null).toBe(first?.check ?? null);
+    expect(all[0]?.message ?? null).toBe(first?.message ?? null);
+  });
+
+  it('agrees on every corpus fixture, as content and as its own replacement', async () => {
+    for (const file of listFixtureFiles()) {
+      const content = loadFixture(file);
+      for (const input of [{ content }, { content, currentContent: content }]) {
+        const all = await preflightAll(input);
+        const first = await preflight(input);
+        expect([file, all[0]?.check ?? null]).toEqual([file, first?.check ?? null]);
+      }
+    }
+  });
+
+  it('returns EVERY failure, in PREFLIGHT_CHECK_ORDER, not just the first', async () => {
+    const failures = await preflightAll({
+      content: '<p>## Heading</p><p>[Confluence Macro: toc (x)]</p><p>1. $1</p><b>dangling',
+      currentContent: MACRO_PAGE,
+    });
+
+    expect(failures.map((failure) => failure.check)).toEqual([
+      'well-formedness',
+      'markdown',
+      'macro-placeholder',
+      'conversion-artifact',
+      'construct-loss',
+    ]);
+    // The write path would have surfaced only this one.
+    expect(failures[0].check).toBe(PREFLIGHT_CHECK_ORDER[0]);
+  });
+
+  it('runs the later checks over malformed content without throwing', async () => {
+    // The one way run-all can diverge from the short-circuiting path is by exploding on a
+    // token stream the write path never reaches. Unclosed elements, a macro, and a layout.
+    const failures = await preflightAll({
+      content: '<ac:layout><ac:layout-section><p>text',
+      currentContent: MACRO_PAGE,
+    });
+
+    expect(failures.map((failure) => failure.check)).toEqual(['well-formedness', 'construct-loss']);
+  });
+
+  it('honours the overrides exactly as the write path does', async () => {
+    expect(
+      (await preflightAll({ content: '<p>## Summary</p>', allowMarkdownContent: true })).length
+    ).toBe(0);
+    expect(
+      (
+        await preflightAll({
+          content: '<p>Body</p>',
+          currentContent: MACRO_PAGE,
+          confirmConstructRemoval: true,
+        })
+      ).length
+    ).toBe(0);
+  });
+
+  it('carries a machine-actionable location and remedy on every failure', async () => {
+    const failures = await preflightAll({
+      content: '<p>## Heading</p><p>[Confluence Macro: toc (x)]</p><p>1. $1</p><b>dangling',
+      currentContent: MACRO_PAGE,
+    });
+
+    for (const failure of failures) {
+      expect(typeof failure.remedy).toBe('string');
+      expect(failure.remedy.length).toBeGreaterThan(0);
+      expect(failure.location).toBeDefined();
+    }
+
+    // Offsets are into the submitted SOURCE and only well-formedness can supply one; the
+    // projection-based checks quote a snippet instead of inventing a position.
+    expect(failures[0].location?.offset).toEqual(expect.any(Number));
+    expect(failures[1].location?.snippet).toMatch(/## Heading/);
+    expect(failures[2].location?.snippet).toMatch(/\[Confluence Macro:/);
+    expect(failures[3].location?.snippet).toMatch(/\$1/);
+    expect(failures[4].location?.snippet).toMatch(/toc/);
   });
 });
