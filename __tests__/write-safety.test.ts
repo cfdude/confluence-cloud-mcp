@@ -13,6 +13,7 @@ import {
   preflightAll,
   resolveWriteVersion,
   versionConflictError,
+  type PreflightCheckName,
   type PreflightInput,
 } from '../src/utils/write-safety.js';
 import { tokenize } from '../src/utils/storage-tokenizer.js';
@@ -585,29 +586,43 @@ describe('classifying Confluence’s own version rejection (task 5.15)', () => {
  * a validator that blesses content the write path rejects.
  */
 describe('preflightAll agrees with the write path (spec: content-validator)', () => {
-  const DIRTY: ReadonlyArray<[string, PreflightInput]> = [
-    ['not well-formed', { content: '<p>unclosed' }],
-    ['markdown', { content: '<p>## Summary</p>' }],
-    ['macro placeholder', { content: '<p>[Confluence Macro: toc (minLevel: 2)]</p>' }],
-    ['conversion artifact', { content: '<p>1. $1</p>' }],
-    ['construct loss', { content: '<p>Body</p>', currentContent: MACRO_PAGE }],
+  /**
+   * Each row also names the check it MUST trip. Asserting only that the two entry points
+   * agree is a tautology when neither fires -- a detector that silently stopped working
+   * would leave both returning `null` and the test green.
+   */
+  const CASES: ReadonlyArray<[string, PreflightInput, PreflightCheckName | null]> = [
+    ['not well-formed', { content: '<p>unclosed' }, 'well-formedness'],
+    ['markdown', { content: '<p>## Summary</p>' }, 'markdown'],
+    [
+      'macro placeholder',
+      { content: '<p>[Confluence Macro: toc (minLevel: 2)]</p>' },
+      'macro-placeholder',
+    ],
+    ['conversion artifact', { content: '<p>1. $1</p>' }, 'conversion-artifact'],
+    ['construct loss', { content: '<p>Body</p>', currentContent: MACRO_PAGE }, 'construct-loss'],
     [
       'several at once',
       {
         content: '<p>## Heading</p><p>[Confluence Macro: toc (x)]</p><p>1. $1</p><b>dangling',
         currentContent: MACRO_PAGE,
       },
+      'well-formedness',
     ],
-    ['clean against a macro page', { content: MACRO_PAGE, currentContent: MACRO_PAGE }],
+    ['clean against a macro page', { content: MACRO_PAGE, currentContent: MACRO_PAGE }, null],
   ];
 
-  it.each(DIRTY)('reports the same verdict as preflight: %s', async (_label, input) => {
-    const all = await preflightAll(input);
-    const first = await preflight(input);
+  it.each(CASES)(
+    'reports the same verdict as preflight: %s',
+    async (_label, input, expectedCheck) => {
+      const all = await preflightAll(input);
+      const first = await preflight(input);
 
-    expect(all[0]?.check ?? null).toBe(first?.check ?? null);
-    expect(all[0]?.message ?? null).toBe(first?.message ?? null);
-  });
+      expect(all[0]?.check ?? null).toBe(expectedCheck);
+      expect(all[0]?.check ?? null).toBe(first?.check ?? null);
+      expect(all[0]?.message ?? null).toBe(first?.message ?? null);
+    }
+  );
 
   it('agrees on every corpus fixture, as content and as its own replacement', async () => {
     for (const file of listFixtureFiles()) {
