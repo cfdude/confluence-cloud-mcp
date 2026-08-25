@@ -53,7 +53,7 @@ import {
   handleRemoveConfluenceLabel,
   handleSearchConfluencePages,
 } from '../src/handlers/search-label-handlers.js';
-import { ConfluenceError } from '../src/types/index.js';
+import { ConfluenceApiError, ConfluenceError } from '../src/types/index.js';
 
 function parse(result: { content: Array<{ type: string; text: string }> }): any {
   expect(result.content).toHaveLength(1);
@@ -348,6 +348,24 @@ describe('handleAddConfluenceLabel', () => {
       message: expect.stringContaining('Failed to add label'),
     });
   });
+
+  it.each([409, 400, 403])(
+    'degrades a %i from the LIVE client to InternalError, because no code survives to branch on',
+    async (status) => {
+      // The three fixtures above are the CONTRACT the handler was written against. This one is
+      // what the real client actually delivers: `confluence-client.test.ts` proves the v2
+      // response interceptor replaces the AxiosError with a ConfluenceApiError before
+      // `addConfluenceLabel`'s own `isAxiosError` check runs, so it never constructs a
+      // ConfluenceError at all. "Label already exists" therefore reaches the agent as an
+      // InternalError rather than the InvalidRequest above.
+      addConfluenceLabel.mockRejectedValue(new ConfluenceApiError('Confluence API Error', status));
+
+      await expect(handleAddConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
+        code: ErrorCode.InternalError,
+        message: expect.stringContaining('Failed to add label'),
+      });
+    }
+  );
 });
 
 describe('handleRemoveConfluenceLabel', () => {
@@ -365,11 +383,24 @@ describe('handleRemoveConfluenceLabel', () => {
     });
   });
 
-  it('reports a genuinely missing page or label as InternalError, not InvalidRequest', async () => {
-    // BUG, documented rather than fixed: the handler branches on `LABEL_EXISTS` to produce its
-    // "Label not found" message, but `removeConfluenceLabel` throws `PAGE_NOT_FOUND` for that
-    // case and never throws `LABEL_EXISTS`. The InvalidRequest branch below is therefore
-    // unreachable in production and a real 404 degrades to InternalError.
+  it('degrades a real 404 from the LIVE client to InternalError', async () => {
+    // BUG, documented rather than fixed, and confirmed against the client rather than assumed:
+    // `confluence-client.test.ts` shows `removeConfluenceLabel` never constructs a
+    // ConfluenceError at all -- the v2 interceptor hands it a ConfluenceApiError, which fails
+    // its `isAxiosError` check, so every status leaves as ConfluenceApiError. A missing page
+    // therefore reaches the agent as InternalError with no "not found" signal.
+    removeConfluenceLabel.mockRejectedValue(new ConfluenceApiError('Confluence API Error', 404));
+
+    await expect(handleRemoveConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({
+      code: ErrorCode.InternalError,
+      message: expect.stringContaining('Failed to remove label'),
+    });
+  });
+
+  it('maps a PAGE_NOT_FOUND ConfluenceError to InternalError as well', async () => {
+    // Even the code the client's own switch WOULD produce, were it reachable, is not the code
+    // this handler branches on -- it tests for `LABEL_EXISTS`, which removal never raises.
+    // Two independent defects stacked on the same path.
     removeConfluenceLabel.mockRejectedValue(
       new ConfluenceError('Page or label not found', 'PAGE_NOT_FOUND')
     );
@@ -380,7 +411,7 @@ describe('handleRemoveConfluenceLabel', () => {
     });
   });
 
-  it('maps LABEL_EXISTS to InvalidRequest (the branch the client never triggers)', async () => {
+  it('maps LABEL_EXISTS to InvalidRequest (a branch nothing can reach)', async () => {
     removeConfluenceLabel.mockRejectedValue(new ConfluenceError('gone', 'LABEL_EXISTS'));
 
     await expect(handleRemoveConfluenceLabel({ pageId: '1', label: 'x' })).rejects.toMatchObject({

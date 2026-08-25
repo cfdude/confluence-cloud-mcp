@@ -20,17 +20,17 @@ export default {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
   // Floor, not a target. Set ~3 points below the numbers measured on 2026-08-25 after the
-  // transport-and-client-coverage epic (stmts 82.49 / branch 69.82 / funcs 86.43 /
-  // lines 83.03) so an honest refactor does not trip it, but deleting tests or landing a
+  // transport-and-client-coverage epic (stmts 83.07 / branch 69.82 / funcs 87.20 /
+  // lines 83.67) so an honest refactor does not trip it, but deleting tests or landing a
   // sizeable untested module does.
   //
   // Previous floor, before that epic: 60 / 48 / 57 / 59, measured against
   // stmts 63.10 / branch 51.06 / funcs 60.85 / lines 62.17.
   coverageThreshold: {
     global: {
-      statements: 79,
+      statements: 80,
       branches: 66,
-      functions: 83,
+      functions: 84,
       lines: 80,
     },
   },
