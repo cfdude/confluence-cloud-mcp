@@ -19,15 +19,19 @@ export default {
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
-  // Floor, not a target. Set ~3 points below the numbers measured on 2026-08-25
-  // (stmts 63.10 / branch 51.06 / funcs 60.85 / lines 62.17) so an honest refactor does
-  // not trip it, but deleting tests or landing a sizeable untested module does.
+  // Floor, not a target. Set ~3 points below the numbers measured on 2026-08-25 after the
+  // transport-and-client-coverage epic (stmts 82.49 / branch 69.82 / funcs 86.43 /
+  // lines 83.03) so an honest refactor does not trip it, but deleting tests or landing a
+  // sizeable untested module does.
+  //
+  // Previous floor, before that epic: 60 / 48 / 57 / 59, measured against
+  // stmts 63.10 / branch 51.06 / funcs 60.85 / lines 62.17.
   coverageThreshold: {
     global: {
-      statements: 60,
-      branches: 48,
-      functions: 57,
-      lines: 59,
+      statements: 79,
+      branches: 66,
+      functions: 83,
+      lines: 80,
     },
   },
 };
