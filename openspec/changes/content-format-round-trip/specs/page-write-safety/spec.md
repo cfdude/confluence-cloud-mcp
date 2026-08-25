@@ -148,12 +148,17 @@ storage format and how to obtain it.
 - **AND** the error states that storage format is required
 - **AND** the page is not modified
 
-#### Scenario: Markdown bullet is rejected
+#### Scenario: Bare bullet alone is NOT rejected
 
 - **WHEN** submitted content contains a line beginning with `-` or `*` followed by a space,
-  outside a code or preformatted region
+  and contains no other markdown structural signal
+- **THEN** the write is not rejected on that basis
+
+#### Scenario: Bullet accompanying another markdown signal is rejected
+
+- **WHEN** submitted content contains a line beginning with `-` or `*` followed by a space,
+  and also contains a markdown heading or `**` emphasis outside a code region
 - **THEN** the write is rejected reporting that the content appears to be markdown
-- **AND** the page is not modified
 
 #### Scenario: Markdown emphasis is rejected
 
@@ -188,6 +193,91 @@ storage format and how to obtain it.
 - **WHEN** submitted content uses storage format elements such as `<h2>`, `<ul><li>`, and
   `<strong>` and contains no markdown structural syntax
 - **THEN** the check passes and the write proceeds
+
+#### Scenario: Dedicated override permits intentional markdown-like prose
+
+- **WHEN** a write would be rejected as markdown and the caller sets the markdown override flag
+- **THEN** the write proceeds
+
+#### Scenario: Construct-removal confirmation does not override markdown rejection
+
+- **WHEN** a write would be rejected as markdown and the caller sets only the construct-removal
+  confirmation flag
+- **THEN** the write is still rejected as markdown
+
+### Requirement: This server's macro-placeholder text is rejected
+
+Markdown rendering represents a macro as the placeholder text `[Confluence Macro: …]`. That
+text appearing in submitted content is proof the caller is writing back a lossy rendering, so
+the server SHALL reject it.
+
+#### Scenario: Macro placeholder text is rejected
+
+- **WHEN** submitted content contains the text `[Confluence Macro:` followed by a macro name
+- **THEN** the write is rejected reporting that the content contains a rendered macro
+  placeholder rather than macro markup
+- **AND** the error directs the caller to retrieve the page with the storage representation
+- **AND** the page is not modified
+
+#### Scenario: Placeholder inside a code block is accepted
+
+- **WHEN** the placeholder text appears inside a code or preformatted region, such as
+  documentation describing the format
+- **THEN** the write is not rejected on that basis
+
+### Requirement: Preflight checks run in a fixed order
+
+Checks SHALL be evaluated in the order well-formedness, markdown-as-storage,
+conversion-artifact, construct-loss, so that the most specific and actionable error is the one
+returned.
+
+#### Scenario: Markdown content reports the markdown error, not construct loss
+
+- **WHEN** submitted content is markdown and the current page contains a macro
+- **THEN** the returned error reports that the content appears to be markdown
+- **AND** does not report construct loss as the primary failure
+
+### Requirement: Page creation is subject to the content checks
+
+Creating a page SHALL apply the same well-formedness, markdown-as-storage,
+conversion-artifact, and macro-placeholder checks as updating one. Construct-loss detection
+does not apply, as there is no prior version to compare against.
+
+#### Scenario: Creating a page with markdown content is rejected
+
+- **WHEN** a page is created with content carrying markdown structural syntax outside a code
+  region
+- **THEN** the creation is rejected reporting that the content appears to be markdown
+- **AND** no page is created
+
+#### Scenario: Creating a page with conversion artifacts is rejected
+
+- **WHEN** a page is created with content carrying the `$1` artifact signature
+- **THEN** the creation is rejected
+- **AND** no page is created
+
+#### Scenario: Creating a page with valid storage succeeds
+
+- **WHEN** a page is created with well-formed storage content containing no markdown syntax
+- **THEN** the page is created
+
+### Requirement: Conflicts report identically however they are detected
+
+A concurrent edit may land between the server resolving the current version and submitting the
+write. Whether a conflict is caught by the server's own comparison or reported by Confluence
+rejecting the submitted version, the caller SHALL receive the same conflict error shape.
+
+#### Scenario: Conflict detected locally
+
+- **WHEN** a supplied expected version does not match the version the server resolves
+- **THEN** a conflict error is returned identifying the expected and current versions
+
+#### Scenario: Conflict detected by Confluence after version resolution
+
+- **WHEN** the page is modified by another author between version resolution and submission,
+  and Confluence rejects the write
+- **THEN** a conflict error is returned in the same shape as a locally detected conflict
+- **AND** the error is not surfaced as an unclassified API failure
 
 ### Requirement: Submitted content must be well-formed storage format
 

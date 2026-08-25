@@ -99,6 +99,27 @@ would discard content.
   set to `markdown` or `both`
 - **THEN** the response indicates that the markdown rendering is not lossy
 
+### Requirement: Finding a page by title returns the same representations
+
+Retrieving a page by title is a documented discovery path and SHALL offer the same `format`
+parameter and return the same representations as retrieving one by id. It SHALL NOT discard
+storage content the server has already fetched.
+
+#### Scenario: Find by title returns storage
+
+- **WHEN** a page is found by title with `format` set to `storage` or `both`
+- **THEN** the response includes the raw storage content
+
+#### Scenario: Find by title reports version and fidelity
+
+- **WHEN** a page is found by title
+- **THEN** the response includes the current version and the lossy indicator
+
+#### Scenario: Listing pages is unaffected
+
+- **WHEN** pages are listed for a space
+- **THEN** the listing does not carry full page bodies
+
 ### Requirement: Retrieval exposes the page's section structure
 
 Page retrieval SHALL report the headings present in the page, so a caller can identify a
@@ -113,3 +134,14 @@ section to edit without parsing the content itself.
 
 - **WHEN** a page contains more than one heading with identical text
 - **THEN** each is listed separately with an occurrence index that distinguishes it
+
+#### Scenario: Outline marks which headings are editable
+
+- **WHEN** a page contains headings inside macro bodies or table cells
+- **THEN** the outline indicates that those headings are not addressable for section editing
+
+#### Scenario: Page with no addressable headings is identifiable
+
+- **WHEN** a page has no addressable headings
+- **THEN** the outline is empty, allowing a caller to determine that section editing is
+  unavailable before attempting it

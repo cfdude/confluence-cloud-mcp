@@ -6,6 +6,7 @@ rewrite has no regression net.
 - [ ] 1.1 Confirm the Jest harness runs the existing suite from a clean checkout and verify `npm test` passes and reports the one existing test file
 - [ ] 1.2 Add a fixture-capture script restricted to the `onvex` site ONLY — never `listreports`/Highway — that fetches raw `body-format=storage` and writes to `__tests__/fixtures/`, and verify it refuses to run against any other configured site (this repository is public; see design.md — Risks)
 - [ ] 1.3 Capture storage fixtures covering ordered lists, nested lists, tables, structured macros, layouts, mixed macro-inside-list, and a plain page; sanitize all captured prose, names, figures, and URLs to synthetic equivalents while preserving markup structure verbatim; verify each fixture is non-empty, well-formed, and contains no real page text
+- [ ] 1.3a Capture or hand-author fixtures for the nested-heading cases: heading inside `ac:rich-text-body`, heading inside a table cell, heading inside `ac:layout-cell`, and a page whose every heading is inside a layout cell; verify each shape is present
 - [ ] 1.4 Add a fixture asserting the exact reported defect — an ordered list whose conversion currently yields `1. $1` — and verify it FAILS against the current converter, proving the fixture detects the bug
 
 ## 2. Tokenizer
@@ -34,7 +35,9 @@ rewrite has no regression net.
 - [ ] 4.4 Include the current version in every retrieval response and verify it matches the version reported by the API
 - [ ] 4.5 Surface the lossy indicator on retrieval and verify a macro-bearing page is flagged while a plain page is not
 - [ ] 4.6 Return the heading outline with levels and occurrence indices, and verify duplicate headings are listed separately with distinguishing indices
-- [ ] 4.7 Verify the markdown remains under a stable response key so a caller reading only markdown is unaffected (design.md — D7)
+- [ ] 4.7 Verify the markdown remains under the existing response key `content` so a caller reading only markdown is unaffected, with storage under a distinct key (design.md — D7)
+- [ ] 4.8 Add the same `format` parameter, version, and lossy indicator to `find_confluence_page` and stop discarding its storage, and verify a find-by-title returns storage identical to a get-by-id for the same page (design.md — D11)
+- [ ] 4.9 Verify `list_confluence_pages` still does NOT carry full page bodies
 
 ## 5. Write safety (capability: page-write-safety)
 
@@ -42,17 +45,26 @@ rewrite has no regression net.
 - [ ] 5.2 Resolve the write version server-side as current + 1 and verify a page at version 7 is written as version 8 without the caller supplying a version
 - [ ] 5.3 Add optional `expectedVersion` conflict detection and verify a stale value fails reporting both expected and current version, leaving the page unmodified
 - [ ] 5.4 Implement well-formedness validation of submitted content and verify malformed input is rejected locally with no modifying request sent
-- [ ] 5.5 Implement markdown-as-storage detection for line-initial `#`, line-initial `-`/`*` followed by a space, `**` emphasis, and triple-backtick fences, evaluated outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA; verify each pattern is rejected and that the same syntax inside a code block is accepted (design.md — D8)
+- [ ] 5.5 Implement markdown-as-storage detection for line-initial `#`, `**` emphasis, and triple-backtick fences, evaluated outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA; verify each is rejected, that the same syntax inside a code block is accepted, and that a bare `-`/`*` bullet ALONE is NOT rejected while a bullet co-occurring with another signal IS (design.md — D8)
 - [ ] 5.6 Verify the markdown rejection error names the problem and directs the caller to retrieve with `format: 'storage'` and author against that
-- [ ] 5.7 Validate the markdown detector against the real corpus: run it over captured storage from both configured sites read-only, and verify it flags the pages the corruption scan already identified without flagging pages whose only matches are inside code blocks
+- [ ] 5.7 Validate the markdown detector against the real corpus using a ONE-OFF, NON-COMMITTED local script outside `npm test`/CI (separate from the 1.2 fixture tool, which is onvex-gated by design); verify it flags the already-identified corrupted pages and does NOT flag bare-bullet-only pages, and verify the script emits only counts and page ids — never matched Highway text
 - [ ] 5.8 Implement conversion-artifact detection covering BOTH the bare-text signature `/[0-9]+\.\s*\$1(?![0-9])/` and a list item whose entire text is `$1`, and verify `$1.2M`, `$1K`, `$1,505,674`, and `$1::vector` are NOT rejected (design.md — D6; the one live corrupted page carries the artifact as bare text with no list markup)
 - [ ] 5.9 Implement construct-loss detection comparing current-page and submitted inventories, and verify a submission dropping a macro is rejected naming that macro
 - [ ] 5.10 Add the explicit confirmation flag permitting intentional construct removal and verify the write proceeds when it is set
-- [ ] 5.11 Verify every rejected write path sends no modifying request to Confluence and returns an error stating the corrective action
+- [ ] 5.11 Implement macro-placeholder detection rejecting `[Confluence Macro: ...]` in submitted content, and verify it is accepted inside a code block (design.md — D8)
+- [ ] 5.12 Add a DEDICATED markdown-override flag, distinct from the construct-removal confirmation, and verify the construct-removal flag alone does NOT override a markdown rejection (design.md — D8)
+- [ ] 5.13 Enforce check order well-formedness -> markdown -> artifact -> construct-loss, and verify markdown content on a macro-bearing page reports the markdown error rather than construct loss (design.md — D10)
+- [ ] 5.14 Apply well-formedness, markdown, artifact, and macro-placeholder checks to `create_confluence_page`, and verify a create carrying markdown or `$1` is rejected and no page is created (design.md — D11)
+- [ ] 5.15 Normalize Confluence's own version-mismatch rejection into the same conflict error shape as the local check, and verify both paths return the same shape (design.md — D12)
+- [ ] 5.16 Verify every rejected write path sends no modifying request to Confluence and returns an error stating the corrective action
 
 ## 6. Section editing (capability: page-section-editing)
 
-- [ ] 6.1 Implement section resolution over the token stream returning heading level, text, and start/end offsets, and verify boundaries land at the next same-or-higher-level heading and at end-of-page for a final section
+- [ ] 6.1 Implement section resolution returning THREE offsets per heading — `headingStart`, `bodyStart`, `sectionEnd` — and verify each operation acts on the span design.md D3 assigns it (replace acts on `bodyStart..sectionEnd`, so the heading survives without the caller re-supplying it and is not duplicated)
+- [ ] 6.1a Implement the sectioning-container rule — layout elements are containers; macro bodies and table cells are opaque — and verify with a fixture `<h2>A</h2><p>x</p><ac:structured-macro ac:name="expand"><ac:rich-text-body><h2>B</h2><p>y</p></ac:rich-text-body></ac:structured-macro><p>z</p><h2>C</h2>` that replacing section A leaves the macro and `<p>z</p>` byte-identical (design.md — D3; 275 live Highway pages have a heading inside a macro body)
+- [ ] 6.1b Verify a heading inside a macro body or table cell is NOT addressable and returns a not-found error naming addressable headings only
+- [ ] 6.1c Verify a heading inside a layout cell IS addressable and its `sectionEnd` is clamped to that cell, using a fixture with two layout cells (238 live Highway pages have every heading inside a layout cell)
+- [ ] 6.1d Assert the same-container invariant on resolved offsets and verify the edit is rejected rather than spliced when it cannot hold
 - [ ] 6.2 Verify subsections are included in a parent section's extent using a fixture with a level-3 heading inside a level-2 section
 - [ ] 6.3 Reject ambiguous heading matches without an occurrence index, reporting the match count, and verify the page is not modified
 - [ ] 6.4 Support an occurrence index to disambiguate duplicate headings and verify the correct occurrence is selected
@@ -60,9 +72,12 @@ rewrite has no regression net.
 - [ ] 6.6 Implement the offset-based string splice and verify that after replacing a section on a macro-heavy fixture, the regions before and after are byte-for-byte identical strings (design.md — D3)
 - [ ] 6.7 Implement replace-section, append-to-section, and insert-section-after operations and verify each against fixtures for correct placement and heading retention
 - [ ] 6.8 Validate submitted section content as well-formed storage before writing and verify malformed content is rejected with no request made
+- [ ] 6.8a Validate the ASSEMBLED document after splicing and verify a fragment that is well-formed alone but produces a malformed document is rejected before any write (design.md — D3)
+- [ ] 6.8b Implement span-scoped construct-loss detection for replace operations and verify a replacement dropping a macro inside the section is rejected, that confirmation permits it, and that append/insert skip the check (design.md — D6)
 - [ ] 6.9 Make `expectedVersion` REQUIRED on section edits and verify a request omitting it is rejected and one with a stale value fails before any splice is attempted (design.md — D9)
 - [ ] 6.10 Add the section-edit tool schemas and handlers wired to the shared write-safety contract, and verify title preservation, markdown-as-storage rejection, and conflict detection all apply to section edits
 - [ ] 6.11 Verify unknown third-party markup outside the edited section is preserved byte-for-byte using a fixture containing markup the server does not model
+- [ ] 6.12 Define and verify whitespace handling at the section/next-heading boundary so append and insert produce neither doubled nor missing blank lines
 
 ## 7. Integration and verification
 

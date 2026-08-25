@@ -89,18 +89,72 @@ not reliably strict XML, so a lenient HTML5 parser fails more gracefully on real
 
 ### D3 — Sections are located by offset, spliced as strings
 
-Section resolution walks the token stream for heading elements, records `(level, text,
-startOffset, endOffset)`, and determines a section's extent as heading start → the start of
-the next heading at the same or higher level, or end of document.
+Section resolution walks the token stream for heading elements and records, for each,
+**three** offsets — not two:
 
-The edit is then `content.slice(0, start) + newSection + content.slice(end)`. Nothing between
-`0` and `start`, or between `end` and the end of the document, is examined at all. That is
-what makes the byte-for-byte guarantee real rather than aspirational, and it is why the
-guarantee extends to markup this server has never seen.
+| Offset | Meaning |
+|---|---|
+| `headingStart` | start of the heading's opening tag |
+| `bodyStart` | end of the heading's closing tag (= start of the section body) |
+| `sectionEnd` | `headingStart` of the next addressable heading at the same or higher level within the same sectioning container, or the container's end |
+
+Two offsets are not enough, and conflating them is a correctness bug rather than a
+simplification: `page-section-editing` guarantees that replacing a section **retains its
+heading**, which is impossible if the replaced span begins at `headingStart`. Each operation
+names the span it acts on explicitly:
+
+| Operation | Span read | Span replaced / insertion point |
+|---|---|---|
+| replace-section | `bodyStart..sectionEnd` | replaced with the supplied content; heading untouched |
+| append-to-section | `bodyStart..sectionEnd` | content inserted at `sectionEnd` |
+| insert-section-after | — | new heading + body inserted at `sectionEnd` |
+
+The edit is then `content.slice(0, spanStart) + newContent + content.slice(spanEnd)`. Nothing
+outside `spanStart..spanEnd` is examined at all. That is what makes the byte-for-byte
+guarantee real rather than aspirational, and why it extends to markup this server has never
+seen.
+
+**Sectioning containers and opaque regions.** A heading is *addressable* only if every
+ancestor between it and the document root is a sectioning container. This is not a refinement;
+without it the byte-for-byte guarantee is simply false on ordinary pages. Measured on the live
+corpus:
+
+| Nested-heading case | onvex, 340 pages | Highway, 3,602 pages |
+|---|---|---|
+| Heading inside `ac:rich-text-body` (a macro interior) | 5 | 275 |
+| Heading inside a table cell | 0 | 499 |
+| Heading inside `ac:layout-cell` | 3 | 239 |
+| Pages where **every** heading sits in a layout cell | 3 | 238 |
+
+Both naive rules fail on real data. Treating every `<h1>`–`<h6>` as addressable means a
+heading inside an expand/panel/info macro truncates the enclosing section's extent early, so
+an ordinary top-level replace splices at an offset *inside* `<ac:rich-text-body>`, orphaning
+closing tags — on 275 Highway pages. Restricting to document-top-level only makes section
+editing unusable on the 238 Highway pages whose every heading lives in a layout cell, which
+are exactly the structured pages this change targets.
+
+So the rule is asymmetric, by container kind:
+
+- **`ac:layout` / `ac:layout-section` / `ac:layout-cell` are sectioning containers.** Headings
+  inside them are addressable; a section's `sectionEnd` is clamped to its own cell's end, so a
+  section never spans out of the cell that contains it.
+- **`ac:rich-text-body` and any other macro interior is opaque.** Headings inside are neither
+  addressable nor considered when computing another section's `sectionEnd` — they are
+  invisible to the resolver, which is what keeps macro interiors unparsed per the Non-Goals.
+- **Table cells are opaque**, on the same reasoning.
+
+**Invariant:** `bodyStart` and `sectionEnd` must resolve to the same sectioning container. An
+implementation that cannot assert this must fail the edit rather than splice.
 
 Ambiguity is an error, not a heuristic: duplicate heading text without an occurrence index
 fails and reports the match count, per spec. Guessing which of two identically-titled sections
 the agent meant is precisely the class of silent damage this change is removing.
+
+**Post-splice validation.** A fragment that is well-formed in isolation does not guarantee the
+assembled document is, and a lenient HTML5 parser reparents stray tags rather than erroring.
+The **assembled** document is therefore re-tokenized and validated before the write, and the
+edit is rejected if assembly produced malformed storage. Validating only the caller's fragment
+would let a subtly broken splice reach Confluence.
 
 ### D4 — Lossy detection by construct inventory
 
@@ -154,6 +208,14 @@ Check 4 is what stops macro loss on whole-page writes: an agent that read markdo
 macros to the renderer, and submitted the result gets a specific, actionable error instead of
 a silently gutted page.
 
+**Construct-loss applies to section edits too, scoped to the replaced span.** Without this,
+the specification would make editing a *whole page* safer than editing *one section* — an
+agent that reads one section as lossy markdown and writes back "cleaned up" text, dropping a
+macro embedded in that section, would be caught by nothing. Since spans are already
+offset-delimited, the comparison is the existing inventory machinery run over
+`bodyStart..sectionEnd` before and after. It is per-operation: replace-section compares the
+span; append-to-section and insert-section-after remove nothing and skip the check.
+
 ### D8 — Reject markdown submitted as storage format
 
 Measured on live data, this is the **most prevalent failure mode by a wide margin** and the
@@ -171,8 +233,35 @@ Confirmed by inspection, not just pattern count — live pages contain
 `## 🎯 Executive Summary` and `* **vs. LinkedIn/Indeed:** …` sitting in the storage field,
 where Confluence renders the `##` and `*` as literal characters.
 
-Markdown-in-storage is roughly two orders of magnitude more common than the `$1` bug. It
-therefore gets its own preflight check rather than being folded into artifact detection.
+**Corrected measurement.** The percentages above were driven largely by a bare `-`/`*` bullet
+test that has a high false-positive rate — humans routinely type a dash at the start of a line
+in ordinary prose. Re-measured with the signals separated by confidence:
+
+| Signal | onvex, 340 pages | Highway, 3,602 pages |
+|---|---|---|
+| Markdown heading `## X` | 6 | 12 |
+| Markdown bold `**x**` | 5 | 14 |
+| Fenced code block | 0 | 2 |
+| Our macro-placeholder text `[Confluence Macro: …]` | 0 | 11 |
+| `$1` artifact | 1 | 1 |
+| **Pages with any high-confidence signal** | **6 (1.8%)** | **20 (0.6%)** |
+| *Bare `-`/`*` bullets only (ambiguous)* | *96 (28.2%)* | *264 (7.3%)* |
+
+So the true corruption count is **26 pages**, roughly 13× the `$1` bug — not the two orders of
+magnitude an unseparated count suggested. The check is still worth having, and still a hard
+rejection, but its **rule must exclude bare bullets**: rejecting them would false-positive on
+360 pages of legitimate human-authored prose, which would make the server actively obstructive.
+
+**Detection rule, final:** reject on markdown headings (`#` ×2–6 + space at line start),
+`**` emphasis, triple-backtick fences, and our own `[Confluence Macro: …]` placeholder text —
+all evaluated outside `<code>`, `<pre>`, `<ac:plain-text-body>`, and CDATA. A bare `-`/`*`
+bullet is **not** on its own grounds for rejection; it counts only when the same submission
+already trips one of the high-confidence signals.
+
+The `[Confluence Macro: …]` placeholder deserves emphasis: it is this server's own converter
+output, and its presence in submitted content is unambiguous proof of a lossy round trip. On
+11 Highway pages a working table-of-contents macro has already been replaced by that literal
+string, destroying page navigation.
 
 Critically, **well-formedness validation cannot catch this**: `### Heading` and `- bullet` are
 perfectly valid XHTML text nodes. It needs a distinct check for markdown structural syntax —
@@ -190,10 +279,43 @@ guesses at intent, cannot represent macros, and would quietly re-establish the l
 markdown→storage path this change exists to eliminate. Rejecting with instructions keeps the
 agent authoring the format the API actually stores.
 
-*False-positive risk:* a page legitimately about markdown, discussing `- bullets` in prose
-outside a code block. Accepted, and mitigated by the explicit-confirmation flag that already
-exists for construct removal; the check is worth a rare false positive given the measured
-30% corruption rate.
+*False-positive risk:* a page legitimately documenting markdown syntax in prose outside a code
+block. Mitigated by a **dedicated override flag, distinct from the construct-removal
+confirmation**. The two assertions are unrelated — "I meant to delete that macro" and "this
+prose really does contain `**` " — and sharing one flag would let a caller confirm the wrong
+thing. Excluding bare bullets from the rule removes the largest false-positive class outright.
+
+### D10 — Check order
+
+The preflight checks are ordered, because a mis-order masks the actionable error. Content
+submitted as markdown contains no macros, so it also trips construct-loss detection; if that
+ran first the agent would be told "you removed a macro" instead of "this is markdown, not
+storage." Order: well-formedness → **markdown-as-storage** → conversion-artifact →
+construct-loss.
+
+### D11 — Coverage: every write path and every content-returning read path
+
+Two handlers were initially overlooked and are in scope:
+
+- **`find_confluence_page`** (`page-handlers.ts:156`) discards raw storage exactly as
+  `get_confluence_page` does, and the client has already fetched it. It is a documented
+  discovery path, so an agent following it still receives the lossy response this change
+  exists to remove. It gets the same `format` parameter. `list_confluence_pages` is
+  deliberately excluded — it should not carry full bodies.
+- **`create_confluence_page`** (`page-handlers.ts:209`) passes content straight through with
+  no validation at all. Creating a page from a markdown draft is the most natural authoring
+  path for an agent, and a page created corrupted and never updated stays corrupted forever.
+  Well-formedness, markdown-as-storage, and conversion-artifact checks all apply. Construct-loss
+  does not — there is no prior version to compare against.
+
+### D12 — Conflict error shape is uniform regardless of who detects it
+
+D5 resolves the version by fetching immediately before the PUT, so a concurrent edit can still
+land in the window between fetch and write. Atomicity there comes from Confluence rejecting
+the mismatched version, not from our local check. Both paths — the local `expectedVersion`
+comparison and Confluence's own rejection — SHALL surface the same conflict error shape, so a
+caller has one case to handle and a test written against the local check does not silently
+miss the race.
 
 ### D9 — Section edits require `expectedVersion`
 

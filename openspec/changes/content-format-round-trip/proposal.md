@@ -53,12 +53,19 @@ converter becomes.
   cases section-scoping cannot express, with preflight checks that catch the destructive
   submissions agents actually make.
 - **Reject markdown submitted as storage format.** Measured on the same corpus, this is the
-  most prevalent failure mode by roughly two orders of magnitude: 30.0% of onvex pages and
-  7.7% of Highway pages contain markdown syntax sitting in the storage field, where Confluence
-  renders it as literal `##` and `*` characters. Live examples include
-  `## 🎯 Executive Summary` and `* **vs. LinkedIn/Indeed:** …`. Well-formedness checking
-  cannot catch this — `### Heading` is a perfectly valid XHTML text node — so it needs its own
-  check, with an error that tells the agent to author storage format and how to obtain it.
+  most prevalent failure mode: 26 pages carry a high-confidence signal (1.8% of onvex, 0.6% of
+  Highway) against 2 for the `$1` bug — roughly 13× more common. Markdown syntax sits in the
+  storage field, where Confluence renders it as literal `##` and `*` characters; live examples
+  include `## 🎯 Executive Summary` and `* **vs. LinkedIn/Indeed:** …`. Well-formedness
+  checking cannot catch this — `### Heading` is a perfectly valid XHTML text node — so it
+  needs its own check, with an error telling the agent to author storage format and how to get
+  it. The rule deliberately excludes bare `-`/`*` bullets, which humans type constantly in
+  ordinary prose and which would otherwise false-positive on ~360 pages.
+- **Reject this server's own macro-placeholder text.** 11 Highway pages have had a working
+  table-of-contents macro replaced by the literal string
+  `[Confluence Macro: toc (minLevel: 2, …)]` — our converter's output, written back by an
+  agent. Page navigation on those pages is destroyed. That string appearing in submitted
+  content is unambiguous proof of a lossy round trip and is rejected.
 - **BREAKING (permissive direction): `title` becomes optional on `update_confluence_page`.**
   It is required today, so an agent editing only body content must restate the title and a
   paraphrase silently renames the page. When omitted, the current title is preserved
@@ -107,9 +114,13 @@ converter becomes.
 URLs are correct and stay as they are: v2 has no CQL search and no content-properties
 equivalent, so the mixed usage is required rather than drift.
 
-**Dependencies** — None added. `atlas_doc_format` is explicitly not adopted; ADF is neither
-lossless for macros nor recommended by Atlassian for programmatic editing, and removal of the
-unused `@atlaskit` packages is a separate change.
+**Dependencies** — One small parser added (see design.md — D2): the converter is rewritten
+over a tokenizer with source offsets, because a regex chain cannot express nesting, lossy
+detection, or the offset contract the section splice depends on. The candidate has no runtime
+dependencies of its own. Net effect across this change and `deps-security-sweep` is a
+reduction of two packages, since that change removes three unused `@atlaskit` packages.
+`atlas_doc_format` is explicitly not adopted — ADF is neither lossless for macros nor
+recommended by Atlassian for programmatic editing.
 
 **Behavior** — Agents that already pass `title` see no change. Agents relying on
 `get_confluence_page` returning a bare markdown string see a richer response shape by default.

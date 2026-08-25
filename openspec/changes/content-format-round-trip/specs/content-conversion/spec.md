@@ -83,6 +83,7 @@ safe to use as the basis for a write.
 
 - **WHEN** storage content containing a layout is converted
 - **THEN** the conversion reports that the result is lossy
+- **AND** identifies that a layout was among the constructs not faithfully represented
 
 #### Scenario: Plain page is reported as faithful
 
@@ -92,11 +93,24 @@ safe to use as the basis for a write.
 
 ### Requirement: Conversion failure is surfaced, not silently substituted
 
-The conversion SHALL NOT return partially converted output as though it were complete. If the
-conversion cannot complete, it SHALL raise an error identifying the failure.
+The conversion SHALL NOT return partially converted output as though it were complete. Errors
+SHALL propagate with their cause attached. Unrecognized or malformed markup is not a failure
+condition — it is handled per the text-retention requirement above and MUST NOT raise.
 
-#### Scenario: Malformed source raises an error
+#### Scenario: Absent input raises an error
 
-- **WHEN** conversion of a given input cannot complete
-- **THEN** an error is raised describing the failure
+- **WHEN** conversion is invoked with a null or undefined input
+- **THEN** an error is raised identifying the invalid input
+- **AND** no result is returned as a success
+
+#### Scenario: Injected internal failure propagates with its cause
+
+- **WHEN** an internal failure is injected during conversion
+- **THEN** the raised error carries the originating cause
 - **AND** no partial or placeholder-substituted result is returned as a success
+
+#### Scenario: Unrecognized markup does not raise
+
+- **WHEN** storage content containing markup the converter does not model is converted
+- **THEN** no error is raised
+- **AND** a result is returned
