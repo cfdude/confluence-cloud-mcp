@@ -36,6 +36,58 @@ const MAX_RATE_LIMIT_WAIT_MS = 30_000;
 /** The v2 request config, carrying the retry counter across re-issues. */
 type RateLimitedRequestConfig = InternalAxiosRequestConfig & { __rateLimitRetries?: number };
 
+/** What a failed HTTP call tells us, normalised across both clients. */
+interface HttpFailure {
+  /** Undefined when the request never got a response at all (DNS, socket, adapter). */
+  status?: number;
+  message: string;
+  data?: unknown;
+}
+
+/**
+ * Describe a caught error as an HTTP failure -- or `undefined` if it is not one.
+ *
+ * ASK THIS, NEVER `isAxiosError`, inside a method's catch block. The v2 client's response
+ * interceptor ends `throw this.handleError(error)`, which replaces the AxiosError with a
+ * ConfluenceApiError before any method's catch runs, so `isAxiosError(error)` is FALSE for
+ * every v2 failure. Every branch that used to sit behind that question -- the documented v1
+ * fallbacks, the status-specific messages, the whole ConfluenceError code mapping -- was
+ * therefore dead code, and errors like "that label already exists" reached the agent as an
+ * opaque InternalError. The v1 client has no interceptor and still raises a real AxiosError,
+ * which is why the identical pattern kept working there. This handles both.
+ *
+ * Returns `undefined` for a ConfluenceError we raised ourselves and for anything else, so a
+ * caller can rethrow it untouched rather than re-wrapping a code it already computed.
+ *
+ * A v2 call that never reached Confluence at all (socket hang-up, DNS, a broken adapter) also
+ * arrives here as a ConfluenceApiError, but with NO status. Gate status-code mapping on
+ * `status !== undefined`, not on this function returning something: running a statusless
+ * failure through a `switch` would label a dropped connection INVALID_LABEL -- a confident,
+ * wrong diagnosis. No status means rethrow what we were given.
+ */
+function httpFailure(error: unknown): HttpFailure | undefined {
+  if (isAxiosError(error)) {
+    return {
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data,
+    };
+  }
+  if (error instanceof ConfluenceApiError) {
+    return { status: error.status, message: error.message, data: error.responseData };
+  }
+  return undefined;
+}
+
+/** Plain-language diagnosis of a failed page READ, so the agent can pick a next move. */
+function describePageReadFailure(pageId: string, status: number): string {
+  if (status === 404) return `Page ${pageId} not found`;
+  if (status === 403) return `Insufficient permissions to read page ${pageId}`;
+  if (status === 401) return `Authentication failed while reading page ${pageId}`;
+  if (status >= 500) return `Confluence server error while reading page ${pageId}`;
+  return `Failed to fetch page ${pageId}`;
+}
+
 export class ConfluenceClient {
   private client: AxiosInstance;
   private clientV1: AxiosInstance;
@@ -204,26 +256,20 @@ export class ConfluenceClient {
     } catch (error) {
       let errorMessage = 'Failed to connect to Confluence API';
 
-      if (isAxiosError(error)) {
-        // Extract detailed error information
-        const errorDetails = {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          message: error.message,
-        };
-
+      const failure = httpFailure(error);
+      if (failure?.status !== undefined) {
         // Provide specific error messages based on status code
-        if (error.response && error.response.status === 401) {
+        if (failure.status === 401) {
           errorMessage = 'Authentication failed: Invalid API token or email';
-        } else if (error.response && error.response.status === 403) {
+        } else if (failure.status === 403) {
           errorMessage = 'Authorization failed: Insufficient permissions';
-        } else if (error.response && error.response.status === 404) {
+        } else if (failure.status === 404) {
           errorMessage = 'API endpoint not found: Check Confluence domain';
-        } else if (error.response && error.response.status >= 500) {
+        } else if (failure.status >= 500) {
           errorMessage = 'Confluence server error: API may be temporarily unavailable';
         }
 
-        console.error(`${errorMessage}:`, errorDetails);
+        console.error(`${errorMessage}:`, { status: failure.status, message: failure.message });
       } else {
         console.error(errorMessage + ':', error instanceof Error ? error.message : String(error));
       }
@@ -308,9 +354,10 @@ export class ConfluenceClient {
       const response = await this.client.get('/pages', { params });
       return response.data.results;
     } catch (error) {
-      if (isAxiosError(error)) {
-        console.error('Error searching for page:', error.message);
-        throw new ConfluenceError(`Failed to search for page: ${error.message}`, 'UNKNOWN');
+      const failure = httpFailure(error);
+      if (failure?.status !== undefined) {
+        console.error('Error searching for page:', failure.message);
+        throw new ConfluenceError(`Failed to search for page: ${failure.message}`, 'UNKNOWN');
       }
       throw error;
     }
@@ -335,17 +382,18 @@ export class ConfluenceClient {
 
       return content;
     } catch (error) {
-      if (isAxiosError(error)) {
-        if (error.response?.status === 404) {
+      const failure = httpFailure(error);
+      if (failure) {
+        if (failure.status === 404) {
           throw new ConfluenceError('Page content not found', 'PAGE_NOT_FOUND');
         }
-        if (error.response?.status === 403) {
+        if (failure.status === 403) {
           throw new ConfluenceError(
             'Insufficient permissions to access page content',
             'INSUFFICIENT_PERMISSIONS'
           );
         }
-        throw new ConfluenceError(`Failed to get page content: ${error.message}`, 'UNKNOWN');
+        throw new ConfluenceError(`Failed to get page content: ${failure.message}`, 'UNKNOWN');
       }
       throw error;
     }
@@ -385,15 +433,32 @@ export class ConfluenceClient {
         throw contentError;
       }
     } catch (error) {
-      if (isAxiosError(error)) {
-        console.error('Error fetching page:', error.message);
-        throw this.handleError(error);
-      }
       console.error(
         'Error fetching page:',
         error instanceof Error ? error.message : 'Unknown error'
       );
-      throw new Error('Failed to fetch page content');
+
+      // A ConfluenceError from the v1 body fallback already carries a precise code
+      // (PAGE_NOT_FOUND, INSUFFICIENT_PERMISSIONS). Re-wrapping it discarded that.
+      if (error instanceof ConfluenceError) {
+        throw error;
+      }
+
+      const failure = httpFailure(error);
+      if (failure?.status !== undefined) {
+        // Say WHICH failure it was. The old catch collapsed 404, 403 and 500 alike into a
+        // bare "Failed to fetch page content", so an agent could not tell "no such page"
+        // from "no permission" and had no basis for choosing what to do next. The status
+        // stays on the error as well, so nothing downstream loses the ability to classify.
+        throw new ConfluenceApiError(
+          `${describePageReadFailure(pageId, failure.status)} (HTTP ${failure.status}): ` +
+            failure.message,
+          failure.status,
+          failure.data
+        );
+      }
+
+      throw error;
     }
   }
 
@@ -484,17 +549,31 @@ export class ConfluenceClient {
       });
       return response.data;
     } catch (error) {
-      // Fall back to V1 API if V2 fails
-      if (isAxiosError(error) && error.response?.status === 404) {
-        const response = await this.clientV1.post(`/content/${pageId}/label`, {
-          prefix,
-          name: label,
-        });
-        return response.data;
+      let failure = httpFailure(error);
+
+      // Fall back to V1 when the deployment has no v2 label route.
+      //
+      // The body is an ARRAY of label objects. It was a single object here, which never
+      // showed up because the fallback was unreachable; the moment it became reachable it
+      // would have 400'd on first use. Atlassian's v1 reference for
+      // `POST /rest/api/content/{id}/label` documents the body as the list of labels to add:
+      // https://developer.atlassian.com/cloud/confluence/rest/v1/api-group-content-labels/
+      if (failure?.status === 404) {
+        try {
+          const response = await this.clientV1.post(`/content/${pageId}/label`, [
+            { prefix, name: label },
+          ]);
+          return response.data;
+        } catch (fallbackError) {
+          // Diagnose the FALLBACK's failure -- reporting the v2 404 would blame the wrong
+          // request now that the fallback actually runs.
+          failure = httpFailure(fallbackError);
+          if (!failure) throw fallbackError;
+        }
       }
 
-      if (isAxiosError(error)) {
-        switch (error.response?.status) {
+      if (failure?.status !== undefined) {
+        switch (failure.status) {
           case 400:
             throw new ConfluenceError(
               'Invalid label format or label already exists',
@@ -510,8 +589,8 @@ export class ConfluenceClient {
           case 409:
             throw new ConfluenceError('Label already exists on this page', 'LABEL_EXISTS');
           default:
-            console.error('Error adding label:', error.response?.data);
-            throw new ConfluenceError(`Failed to add label: ${error.message}`, 'UNKNOWN');
+            console.error('Error adding label:', failure.data);
+            throw new ConfluenceError(`Failed to add label: ${failure.message}`, 'UNKNOWN');
         }
       }
       throw error;
@@ -523,14 +602,21 @@ export class ConfluenceClient {
       // Try V2 API first
       await this.client.delete(`/pages/${pageId}/labels/${label}`);
     } catch (error) {
-      // Fall back to V1 API if V2 fails
-      if (isAxiosError(error) && error.response?.status === 404) {
-        await this.clientV1.delete(`/content/${pageId}/label/${label}`);
-        return;
+      let failure = httpFailure(error);
+
+      // Fall back to V1 when the deployment has no v2 label route.
+      if (failure?.status === 404) {
+        try {
+          await this.clientV1.delete(`/content/${pageId}/label/${label}`);
+          return;
+        } catch (fallbackError) {
+          failure = httpFailure(fallbackError);
+          if (!failure) throw fallbackError;
+        }
       }
 
-      if (isAxiosError(error)) {
-        switch (error.response?.status) {
+      if (failure?.status !== undefined) {
+        switch (failure.status) {
           case 403:
             throw new ConfluenceError(
               'Insufficient permissions to remove labels',
@@ -539,8 +625,8 @@ export class ConfluenceClient {
           case 404:
             throw new ConfluenceError('Page or label not found', 'PAGE_NOT_FOUND');
           default:
-            console.error('Error removing label:', error.response?.data);
-            throw new ConfluenceError(`Failed to remove label: ${error.message}`, 'UNKNOWN');
+            console.error('Error removing label:', failure.data);
+            throw new ConfluenceError(`Failed to remove label: ${failure.message}`, 'UNKNOWN');
         }
       }
       throw error;
@@ -598,9 +684,10 @@ export class ConfluenceClient {
         },
       };
     } catch (error) {
-      if (isAxiosError(error)) {
-        console.error('Error searching content:', error.message, error.response?.data);
-        throw new ConfluenceError(`Failed to search content: ${error.message}`, 'SEARCH_FAILED');
+      const failure = httpFailure(error);
+      if (failure) {
+        console.error('Error searching content:', failure.message, failure.data);
+        throw new ConfluenceError(`Failed to search content: ${failure.message}`, 'SEARCH_FAILED');
       }
       throw error;
     }
@@ -634,19 +721,26 @@ export class ConfluenceClient {
         value,
       });
     } catch (error) {
-      // Fall back to V1 API
-      if (isAxiosError(error) && error.response?.status === 404) {
-        await this.clientV1.put(`/content/${pageId}/property/${key}`, {
-          key,
-          value,
-        });
-        return;
+      let failure = httpFailure(error);
+
+      // Fall back to V1 when the deployment has no v2 property route.
+      if (failure?.status === 404) {
+        try {
+          await this.clientV1.put(`/content/${pageId}/property/${key}`, {
+            key,
+            value,
+          });
+          return;
+        } catch (fallbackError) {
+          failure = httpFailure(fallbackError);
+          if (!failure) throw fallbackError;
+        }
       }
 
-      if (isAxiosError(error)) {
-        console.error('Error setting content property:', error.response?.data);
+      if (failure?.status !== undefined) {
+        console.error('Error setting content property:', failure.data);
         throw new ConfluenceError(
-          `Failed to set content property: ${error.message}`,
+          `Failed to set content property: ${failure.message}`,
           'PROPERTY_SET_FAILED'
         );
       }
@@ -672,10 +766,11 @@ export class ConfluenceClient {
         }
       );
     } catch (error) {
-      if (isAxiosError(error)) {
-        console.error('Error moving page:', error.response?.data);
+      const failure = httpFailure(error);
+      if (failure) {
+        console.error('Error moving page:', failure.data);
 
-        switch (error.response?.status) {
+        switch (failure.status) {
           case 404:
             throw new ConfluenceError(
               `Page ${pageId} or target parent ${targetParentId} not found`,
@@ -688,11 +783,13 @@ export class ConfluenceClient {
             );
           case 400:
             throw new ConfluenceError(
-              `Invalid move operation: ${error.response?.data?.message || error.message}`,
+              `Invalid move operation: ${
+                (failure.data as { message?: string } | undefined)?.message || failure.message
+              }`,
               'INVALID_REQUEST'
             );
           default:
-            throw new ConfluenceError(`Failed to move page: ${error.message}`, 'MOVE_FAILED');
+            throw new ConfluenceError(`Failed to move page: ${failure.message}`, 'MOVE_FAILED');
         }
       }
       throw error;

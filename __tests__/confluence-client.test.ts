@@ -256,22 +256,28 @@ describe('verifyApiConnection', () => {
     expect(calls[2].params).toMatchObject({ limit: 25 });
   });
 
-  it.each([401, 403, 404, 418, 500, 503])(
-    'collapses a %i to the generic message, losing the status-specific diagnosis',
-    async (status) => {
-      // BUG #1, documented rather than fixed -- see the `v2 interceptor` block below for the
-      // root cause. `verifyApiConnection` branches on `isAxiosError(error)` to produce
-      // "Authentication failed: Invalid API token or email" for a 401, "Authorization failed"
-      // for a 403 and so on. The v2 response interceptor has already replaced the AxiosError
-      // with a ConfluenceApiError by then, so `isAxiosError` is false and EVERY status --
-      // including the 401 that means "your API token is wrong" -- reaches the operator as the
-      // undiagnosable "Failed to connect to Confluence API".
-      always({ status, data: { message: 'raw' } });
-      await expect(client().verifyApiConnection()).rejects.toThrow(
-        'Failed to connect to Confluence API'
-      );
-    }
-  );
+  it.each([
+    [401, 'Authentication failed: Invalid API token or email'],
+    [403, 'Authorization failed: Insufficient permissions'],
+    [404, 'API endpoint not found: Check Confluence domain'],
+    [500, 'Confluence server error: API may be temporarily unavailable'],
+    [503, 'Confluence server error: API may be temporarily unavailable'],
+  ])('diagnoses a %i for the operator', async (status, message) => {
+    // Was BUG #1: these branches sat behind `isAxiosError(error)`, which the v2 interceptor
+    // has always answered false (see the `v2 interceptor` block below), so EVERY status --
+    // including the 401 that means "your API token is wrong" -- reached the operator as the
+    // undiagnosable "Failed to connect to Confluence API". They now branch on the status the
+    // ConfluenceApiError preserves.
+    always({ status, data: { message: 'raw' } });
+    await expect(client().verifyApiConnection()).rejects.toThrow(message);
+  });
+
+  it('keeps the generic message for a status with no specific diagnosis', async () => {
+    always({ status: 418, data: { message: 'raw' } });
+    await expect(client().verifyApiConnection()).rejects.toThrow(
+      'Failed to connect to Confluence API'
+    );
+  });
 
   it('reports a generic failure for a non-axios error', async () => {
     responder = () => {
@@ -295,9 +301,13 @@ describe('v2 interceptor: the AxiosError is replaced before any method sees it',
    * The v1 client has no interceptor at all, which is why the same patterns work there
    * (getPageContent, searchConfluenceContent, moveConfluencePage all map correctly).
    *
-   * Not fixed here: this epic is tests-only, and the fix -- letting the interceptor rethrow
-   * the AxiosError, or teaching each method to recognise ConfluenceApiError -- changes the
-   * error type crossing the handler boundary and needs its own change with its own review.
+   * FIXED by the client-error-mapping change, and the substitution below is still the
+   * contract: the interceptor still converts, because the preserved status is what lets the
+   * write-safety layer classify a version conflict (design.md D12). What changed is that no
+   * method asks `isAxiosError` any more -- they ask the client's `httpFailure` helper, which
+   * reads the status off either an AxiosError (v1) or a ConfluenceApiError (v2). The tests
+   * below therefore still assert the substitution; the mapping tests further down assert that
+   * the branches behind it are now live.
    */
 
   it('hands methods a ConfluenceApiError, never an AxiosError, for a v2 failure', async () => {
@@ -400,29 +410,44 @@ describe('error mapping', () => {
     expect(error.message).toContain('Network Error');
   });
 
-  it('DISCARDS the status when the failure is a page READ', async () => {
-    // BUG #2: `getConfluencePage` wraps its body in a try/catch that asks
-    // `isAxiosError(error)` before calling `handleError`. Since the interceptor already
-    // converted the error (see the `v2 interceptor` block), that test fails and the method
-    // falls through to `throw new Error('Failed to fetch page content')` -- so a 404 on a
-    // missing page, a 403 on a restricted one and a 500 are indistinguishable to the caller.
-    always({ status: 404, data: { message: 'Page not found' } });
+  it.each([
+    [404, 'Page 1 not found'],
+    [403, 'Insufficient permissions to read page 1'],
+    [401, 'Authentication failed while reading page 1'],
+    [500, 'Confluence server error while reading page 1'],
+  ])('diagnoses a %i on a page READ instead of collapsing it', async (status, diagnosis) => {
+    // Was BUG #2: `getConfluencePage` asked `isAxiosError(error)` before calling
+    // `handleError`, and since the interceptor had already converted the error (see the
+    // `v2 interceptor` block) it fell through to a bare `Failed to fetch page content` -- a
+    // missing page, a restricted one and a server error were indistinguishable to the agent.
+    always({ status, data: { message: 'raw' } });
 
     const error = await client()
       .getConfluencePage('1')
       .catch((e) => e);
 
-    expect(error).not.toBeInstanceOf(ConfluenceApiError);
-    expect(error.message).toBe('Failed to fetch page content');
-    expect(error.status).toBeUndefined();
+    expect(error).toBeInstanceOf(ConfluenceApiError);
+    expect(error.message).toContain(diagnosis);
+    expect(error.message).toContain(`HTTP ${status}`);
+    // The status stays ON the error, not just in the prose.
+    expect(error.status).toBe(status);
   });
 
-  it('reports a non-axios failure as a plain fetch error', async () => {
+  it('rethrows a transport failure with its own message intact', async () => {
+    // Inverted deliberately: this used to assert `Failed to fetch page content`. Statusless
+    // failures are now rethrown untouched, so "adapter imploded" survives to the log instead
+    // of being replaced by a message that describes the wrong thing.
     responder = () => {
       throw new Error('adapter imploded');
     };
 
-    await expect(client().getConfluencePage('1')).rejects.toThrow('Failed to fetch page content');
+    const error = await client()
+      .getConfluencePage('1')
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(ConfluenceApiError);
+    expect(error.status).toBeUndefined();
+    expect(error.message).toContain('adapter imploded');
   });
 });
 
@@ -687,11 +712,24 @@ describe('page listing and lookup', () => {
     expect(calls[0].params).not.toHaveProperty('space-id');
   });
 
-  it('leaks a ConfluenceApiError from a title search instead of its UNKNOWN mapping', async () => {
-    // BUG #3: `searchPageByName` catches and maps to `ConfluenceError(..., 'UNKNOWN')` behind
-    // an `isAxiosError` test the v2 interceptor has already invalidated, so the mapping never
-    // runs. Harmless today -- callers treat both as failures -- but the branch is dead.
+  it('maps a failed title search to its UNKNOWN ConfluenceError', async () => {
+    // Was BUG #3: the mapping sat behind an `isAxiosError` test the v2 interceptor had
+    // already invalidated, so the branch was dead.
     always({ status: 500, data: { message: 'boom' } });
+
+    const error = await client()
+      .searchPageByName('Quarterly Plan')
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(ConfluenceError);
+    expect(error.code).toBe('UNKNOWN');
+    expect(error.message).toContain('Failed to search for page');
+  });
+
+  it('rethrows a statusless title-search failure rather than calling it UNKNOWN', async () => {
+    responder = () => {
+      throw new Error('adapter imploded');
+    };
 
     const error = await client()
       .searchPageByName('Quarterly Plan')
@@ -699,7 +737,6 @@ describe('page listing and lookup', () => {
 
     expect(error).toBeInstanceOf(ConfluenceApiError);
     expect(error).not.toBeInstanceOf(ConfluenceError);
-    expect(error.status).toBe(500);
   });
 
   it('reports PAGE_NOT_FOUND when no page carries the title', async () => {
@@ -774,11 +811,11 @@ describe('getConfluencePage', () => {
     expect(page.body).toBeUndefined();
   });
 
-  it('flattens a non-EMPTY_CONTENT failure from the v1 fallback', async () => {
-    // Same shape as BUG #2: `getPageContent` correctly raises
-    // `ConfluenceError('INSUFFICIENT_PERMISSIONS')`, the inner catch correctly rethrows it
-    // because it is not EMPTY_CONTENT -- and then the OUTER catch's `isAxiosError` test fails
-    // and flattens it to a bare `Failed to fetch page content`. The code is lost.
+  it('preserves the code a non-EMPTY_CONTENT v1 fallback failure carries', async () => {
+    // Was the same shape as BUG #2: `getPageContent` raises
+    // `ConfluenceError('INSUFFICIENT_PERMISSIONS')`, the inner catch rethrows it because it
+    // is not EMPTY_CONTENT -- and the OUTER catch then flattened it to a bare
+    // `Failed to fetch page content`, losing the code. It is now rethrown untouched.
     responder = (_call, index) =>
       index === 0 ? { status: 200, data: v2Page() } : { status: 403, data: { message: 'nope' } };
 
@@ -786,8 +823,8 @@ describe('getConfluencePage', () => {
       .getConfluencePage('15106417')
       .catch((e) => e);
 
-    expect(error).not.toBeInstanceOf(ConfluenceError);
-    expect(error.message).toBe('Failed to fetch page content');
+    expect(error).toBeInstanceOf(ConfluenceError);
+    expect(error.code).toBe('INSUFFICIENT_PERMISSIONS');
   });
 });
 
@@ -888,44 +925,48 @@ describe('label operations', () => {
     expect(calls[0].body).toEqual({ name: 'reviewed' });
   });
 
-  it('never reaches the v1 label fallback on a v2 404', async () => {
-    // BUG #4: the v1 fallback is guarded by `isAxiosError(error) && status === 404`, which the
-    // v2 interceptor has already made unreachable. Only ONE request is issued and the caller
-    // gets a raw ConfluenceApiError. If a Confluence deployment ever lacks the v2 label route,
-    // the documented fallback will not save it.
+  it('falls back to the v1 label endpoint on a v2 404', async () => {
+    // Was BUG #4: the fallback was guarded by `isAxiosError(error) && status === 404`, which
+    // the v2 interceptor had already made unreachable, so only ONE request was ever issued.
     inOrder(
       { status: 404, data: { message: 'no such route' } },
       { status: 200, data: { id: '1' } }
     );
 
-    const error = await client()
-      .addConfluenceLabel('15106417', 'reviewed', 'my')
-      .catch((e) => e);
+    const result = await client().addConfluenceLabel('15106417', 'reviewed', 'my');
 
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
     expect(calls[0].baseURL).toBe(V2);
-    expect(error).toBeInstanceOf(ConfluenceApiError);
-    expect(error.status).toBe(404);
+    expect(calls[1].method).toBe('POST');
+    expect(calls[1].fullUrl).toBe(`${V1}/content/15106417/label`);
+    // v1 takes an ARRAY of label objects, not a bare one -- the shape this fallback sent
+    // while nothing could reach it.
+    expect(calls[1].body).toEqual([{ prefix: 'my', name: 'reviewed' }]);
+    expect(result).toEqual({ id: '1' });
   });
 
-  it.each([400, 403, 404, 409, 500])(
-    'leaks a %i on add as a ConfluenceApiError instead of its ConfluenceError code',
-    async (status) => {
-      // Same root cause: INVALID_LABEL / PERMISSION_DENIED / PAGE_NOT_FOUND / LABEL_EXISTS are
-      // all dead branches. The handler above this layer branches on `error.code ===
-      // 'LABEL_EXISTS'` to return InvalidRequest, so "label already exists" reaches the agent
-      // as an InternalError instead.
-      always({ status, data: { message: 'x' } });
+  it.each([
+    [400, 'INVALID_LABEL'],
+    [403, 'PERMISSION_DENIED'],
+    [404, 'PAGE_NOT_FOUND'],
+    [409, 'LABEL_EXISTS'],
+    [500, 'UNKNOWN'],
+  ])('maps a %i on add to %s', async (status, code) => {
+    // Same root cause, same fix: these mappings were all dead branches, so "label already
+    // exists" reached the agent as an opaque InternalError rather than the InvalidRequest the
+    // handler above this layer produces from LABEL_EXISTS.
+    //
+    // 404 takes the long way round: v2 404s, the v1 fallback runs and 404s too, and the
+    // fallback's own status is what gets diagnosed.
+    always({ status, data: { message: 'x' } });
 
-      const error = await client()
-        .addConfluenceLabel('1', 'x')
-        .catch((e) => e);
+    const error = await client()
+      .addConfluenceLabel('1', 'x')
+      .catch((e) => e);
 
-      expect(error).toBeInstanceOf(ConfluenceApiError);
-      expect(error).not.toBeInstanceOf(ConfluenceError);
-      expect(error.status).toBe(status);
-    }
-  );
+    expect(error).toBeInstanceOf(ConfluenceError);
+    expect(error.code).toBe(code);
+  });
 
   it('converts a non-axios add failure into a ConfluenceApiError too', async () => {
     responder = () => {
@@ -943,31 +984,30 @@ describe('label operations', () => {
     expect(calls[0].fullUrl).toBe(`${V2}/pages/15106417/labels/reviewed`);
   });
 
-  it('never reaches the v1 label-removal fallback on a v2 404', async () => {
+  it('falls back to the v1 label-removal endpoint on a v2 404', async () => {
     inOrder({ status: 404, data: { message: 'x' } }, { status: 204, data: {} });
 
-    const error = await client()
-      .removeConfluenceLabel('15106417', 'reviewed')
-      .catch((e) => e);
+    await client().removeConfluenceLabel('15106417', 'reviewed');
 
-    expect(calls).toHaveLength(1);
-    expect(error).toBeInstanceOf(ConfluenceApiError);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].method).toBe('DELETE');
+    expect(calls[1].fullUrl).toBe(`${V1}/content/15106417/label/reviewed`);
   });
 
-  it.each([403, 404, 500])(
-    'leaks a %i on remove as a ConfluenceApiError instead of its ConfluenceError code',
-    async (status) => {
-      always({ status, data: { message: 'x' } });
+  it.each([
+    [403, 'PERMISSION_DENIED'],
+    [404, 'PAGE_NOT_FOUND'],
+    [500, 'UNKNOWN'],
+  ])('maps a %i on remove to %s', async (status, code) => {
+    always({ status, data: { message: 'x' } });
 
-      const error = await client()
-        .removeConfluenceLabel('1', 'x')
-        .catch((e) => e);
+    const error = await client()
+      .removeConfluenceLabel('1', 'x')
+      .catch((e) => e);
 
-      expect(error).toBeInstanceOf(ConfluenceApiError);
-      expect(error).not.toBeInstanceOf(ConfluenceError);
-      expect(error.status).toBe(status);
-    }
-  );
+    expect(error).toBeInstanceOf(ConfluenceError);
+    expect(error.code).toBe(code);
+  });
 
   it('converts a non-axios remove failure into a ConfluenceApiError too', async () => {
     responder = () => {
@@ -1101,27 +1141,26 @@ describe('setContentProperty', () => {
     expect(calls[0].body).toEqual({ key: 'my-key', value: { a: 1 } });
   });
 
-  it('never reaches the v1 property fallback on a v2 404', async () => {
+  it('falls back to the v1 property endpoint on a v2 404', async () => {
     inOrder({ status: 404, data: { message: 'x' } }, { status: 200, data: {} });
 
-    const error = await client()
-      .setContentProperty('15106417', 'my-key', { a: 1 })
-      .catch((e) => e);
+    await client().setContentProperty('15106417', 'my-key', { a: 1 });
 
-    expect(calls).toHaveLength(1);
-    expect(error).toBeInstanceOf(ConfluenceApiError);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].method).toBe('PUT');
+    expect(calls[1].fullUrl).toBe(`${V1}/content/15106417/property/my-key`);
+    expect(calls[1].body).toEqual({ key: 'my-key', value: { a: 1 } });
   });
 
-  it('leaks a ConfluenceApiError instead of PROPERTY_SET_FAILED', async () => {
+  it('maps a property failure to PROPERTY_SET_FAILED', async () => {
     always({ status: 403, data: { message: 'x' } });
 
     const error = await client()
       .setContentProperty('1', 'k', 1)
       .catch((e) => e);
 
-    expect(error).toBeInstanceOf(ConfluenceApiError);
-    expect(error).not.toBeInstanceOf(ConfluenceError);
-    expect(error.status).toBe(403);
+    expect(error).toBeInstanceOf(ConfluenceError);
+    expect(error.code).toBe('PROPERTY_SET_FAILED');
   });
 
   it('converts a non-axios property failure into a ConfluenceApiError too', async () => {
