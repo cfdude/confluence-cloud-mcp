@@ -198,6 +198,14 @@ export interface ContainerRef {
   contentEnd: number;
 }
 
+/**
+ * Named entities decoded in attribute values and, via `decodeEntities`, in text nodes.
+ *
+ * Beyond the XML five and `nbsp`, this covers the typographic entities Confluence's editor
+ * emits in ordinary prose (curly quotes, dashes, ellipsis, arrows). Leaving those undecoded
+ * put raw `&rsquo;` into the markdown an agent reads. Numeric entities are handled
+ * generically below, so only named ones need listing.
+ */
 const NAMED_ENTITIES: Record<string, string> = {
   amp: '&',
   lt: '<',
@@ -205,10 +213,51 @@ const NAMED_ENTITIES: Record<string, string> = {
   quot: '"',
   apos: "'",
   nbsp: ' ',
+  lsquo: '\u2018',
+  rsquo: '\u2019',
+  ldquo: '\u201c',
+  rdquo: '\u201d',
+  sbquo: '\u201a',
+  bdquo: '\u201e',
+  ndash: '\u2013',
+  mdash: '\u2014',
+  hellip: '\u2026',
+  bull: '\u2022',
+  middot: '\u00b7',
+  larr: '\u2190',
+  uarr: '\u2191',
+  rarr: '\u2192',
+  darr: '\u2193',
+  harr: '\u2194',
+  laquo: '\u00ab',
+  raquo: '\u00bb',
+  times: '\u00d7',
+  divide: '\u00f7',
+  plusmn: '\u00b1',
+  deg: '\u00b0',
+  copy: '\u00a9',
+  reg: '\u00ae',
+  trade: '\u2122',
+  euro: '\u20ac',
+  pound: '\u00a3',
+  yen: '\u00a5',
+  cent: '\u00a2',
+  sect: '\u00a7',
+  para: '\u00b6',
+  dagger: '\u2020',
+  prime: '\u2032',
+  frac12: '\u00bd',
+  frac14: '\u00bc',
+  frac34: '\u00be',
 };
 
-/** Decode the entity subset that appears in Confluence attribute values. */
-function decodeEntities(input: string): string {
+/**
+ * Decode the entity subset that appears in Confluence attribute values.
+ *
+ * Exported because the markdown renderer needs the same decoding for TEXT nodes, and two
+ * copies of an entity table is exactly the kind of drift that ends up in page content.
+ */
+export function decodeEntities(input: string): string {
   if (!input.includes('&')) return input;
   return input.replace(
     /&(#x[0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g,

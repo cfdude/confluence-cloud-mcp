@@ -22,8 +22,14 @@ import {
 /**
  * Elements this server models in markdown. Anything outside this set, and outside the
  * `ac:`/`ri:` namespaces, is third-party markup we render only as text.
+ *
+ * This set is a PROMISE the markdown renderer has to keep. If `content-converter.ts` were to
+ * drop an element named here, `unknownNames` would under-report it and `lossy` would claim
+ * "faithful" for a page that lost content. The two are therefore reconciled rather than
+ * independently maintained: the converter exports `reconcileModelledElements()`, which
+ * asserts set equality in both directions, and the test suite fails on any drift.
  */
-const MODELLED_ELEMENTS: ReadonlySet<string> = new Set([
+export const MODELLED_ELEMENTS: ReadonlySet<string> = new Set([
   'a',
   'b',
   'big',
