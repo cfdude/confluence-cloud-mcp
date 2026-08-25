@@ -177,7 +177,16 @@ export interface Shapes {
   headingCount: number;
 }
 
-/** Elements this server models. Anything else is "unmodelled" for fixture purposes. */
+/**
+ * Elements this server models.
+ *
+ * `unmodelledElement` means a NON-NAMESPACED element the converter has no handling for
+ * (`<x-widget>`). `ac:`/`ri:` elements are excluded because they are namespaced-but-known-
+ * shaped: the server does not model their MEANING either, but it recognizes them as
+ * Confluence constructs and they are already covered by the macro/layout shape flags.
+ * Tasks 3.5 and 6.11 -- "an element the converter does not model" -- are served by BOTH:
+ * unknown-markup.xhtml carries `<x-widget>` and a third-party `ac:structured-macro`.
+ */
 const MODELLED = new Set([
   'p',
   'br',
