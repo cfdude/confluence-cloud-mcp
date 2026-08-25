@@ -50,6 +50,12 @@
       "sanitized": false
     },
     {
+      "file": "heading-subsections.xhtml",
+      "origin": "hand-authored",
+      "shape": "level-3 headings nested inside a level-2 section, followed by a second level-2 section (task 6.2)",
+      "sanitized": false
+    },
+    {
       "file": "macro-in-list.xhtml",
       "origin": "hand-authored",
       "shape": "structured macro inside an ordered list item",

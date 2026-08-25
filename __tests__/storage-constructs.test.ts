@@ -90,6 +90,13 @@ const EXPECTED: Record<string, Expectation> = {
     namespaced: [],
     unknown: [],
   },
+  'heading-subsections.xhtml': {
+    lossy: false,
+    macros: [],
+    layouts: [],
+    namespaced: [],
+    unknown: [],
+  },
   'macro-in-list.xhtml': {
     lossy: true,
     macros: ['info', 'status'],
