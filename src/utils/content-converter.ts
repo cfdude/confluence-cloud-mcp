@@ -530,33 +530,55 @@ function renderList(node: ElementNode): string {
   let counter = Number.isFinite(parsedStart) && parsedStart > 0 ? parsedStart : 1;
 
   const lines: string[] = [];
+  // Anything in the list that is not an `<li>` -- loose text, a nested list emitted as a
+  // sibling, third-party markup. It is rendered on its own line rather than dropped; a list
+  // is not a licence to lose content that happens to sit between items.
+  let stray: Node[] = [];
+  const flushStray = (): void => {
+    if (stray.length === 0) return;
+    const text = renderChildren(stray, ITEM_CONTEXT);
+    stray = [];
+    if (text) lines.push(text);
+  };
+
   for (const child of node.children) {
-    if (child.kind !== 'element') continue;
-    if (child.name !== 'li') {
-      // A stray non-`li` child (nested list emitted as a sibling, third-party markup).
-      // Render it rather than dropping it.
-      const stray = renderChildren([child], ITEM_CONTEXT);
-      if (stray) lines.push(stray);
+    if (child.kind !== 'element' || child.name !== 'li') {
+      stray.push(child);
       continue;
     }
+    flushStray();
 
     const marker = ordered ? `${counter}. ` : '* ';
     counter += 1;
     const body = renderChildren(child.children, ITEM_CONTEXT);
     lines.push(prefixLines(body, marker, ' '.repeat(marker.length)));
   }
+  flushStray();
 
   return lines.join('\n');
 }
 
 function renderTaskList(node: ElementNode): string {
   const lines: string[] = [];
+  let stray: Node[] = [];
+  const flushStray = (): void => {
+    if (stray.length === 0) return;
+    const text = renderChildren(stray, ITEM_CONTEXT);
+    stray = [];
+    if (text) lines.push(text);
+  };
+
   for (const child of node.children) {
-    if (child.kind !== 'element') continue;
-    const rendered =
-      child.name === 'ac:task' ? renderTask(child) : renderChildren([child], ITEM_CONTEXT);
+    if (child.kind !== 'element' || child.name !== 'ac:task') {
+      stray.push(child);
+      continue;
+    }
+    flushStray();
+    const rendered = renderTask(child);
     if (rendered) lines.push(rendered);
   }
+  flushStray();
+
   return lines.join('\n');
 }
 
