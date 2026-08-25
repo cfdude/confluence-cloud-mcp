@@ -316,8 +316,10 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
       });
 
       const page = await loadCurrentPage();
-      // Repeated because `confirmConstructRemoval` short-circuits the check above before the
-      // resolver runs. Pure and idempotent, so running it twice costs nothing.
+      // Unconditional, because the version assertion inside the construct-loss resolver is not
+      // guaranteed to have run: an earlier preflight check may have thrown first, and the
+      // resolver is only reached when construct-loss is actually evaluated. Pure and
+      // idempotent, so asserting again when it did run costs nothing.
       assertExpectedVersion(toolArgs.expectedVersion, page.version.number);
 
       const title = toolArgs.title ?? page.title;

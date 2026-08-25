@@ -99,7 +99,21 @@ async function runSectionEdit(args: SectionEditArgs, operation: SectionOperation
   const expectedVersion = requireExpectedVersion(args.expectedVersion);
   const heading = requireString(args.heading, 'heading');
   const occurrence = optionalOccurrence(args.occurrence);
-  const body = args.content === undefined ? '' : requireString(args.content, 'content');
+  // `content` is required for replace and append, and optional only for insert-after (a new
+  // section may legitimately be created with a heading and an empty body).
+  //
+  // Nothing in this server enforces a schema's `required` array at runtime, so treating an
+  // omitted `content` as `''` here made a dropped field indistinguishable from a deliberate
+  // empty body: `replace` spliced the section's body out entirely and reported success, and
+  // `append` became a silent no-op. Span-scoped construct-loss only catches that when the
+  // section happens to contain a macro or layout, so an ordinary prose section was destroyed
+  // without any error at all -- the exact silent-destruction class this change exists to close.
+  const body =
+    operation === 'insert-after'
+      ? args.content === undefined
+        ? ''
+        : requireString(args.content, 'content')
+      : requireString(args.content, 'content');
   const newHeading =
     operation === 'insert-after' ? requireString(args.newHeading, 'newHeading') : '';
 

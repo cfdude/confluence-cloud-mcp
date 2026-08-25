@@ -176,6 +176,50 @@ describe('expectedVersion is REQUIRED on section edits (task 6.9, design.md D9)'
   });
 });
 
+describe('content is REQUIRED on replace and append (Gate 2 finding)', () => {
+  // Regression test. Omitting `content` was treated as an empty body, so `replace` spliced the
+  // section's body out and reported success while `append` became a silent no-op. Reproduced
+  // against live Confluence before the fix: a two-paragraph section was reduced to its heading
+  // alone, with no error returned. Nothing enforces a schema's `required` array at runtime, so
+  // a dropped field must be rejected here or not at all.
+  it('rejects replace with content omitted, writing nothing', async () => {
+    const message = await failure(() =>
+      handleReplaceConfluenceSection({
+        pageId: '123456',
+        heading: 'Intro',
+        expectedVersion: 7,
+      } as never)
+    );
+
+    expect(message).toContain('content');
+    expect(updateConfluencePage).not.toHaveBeenCalled();
+  });
+
+  it('rejects append with content omitted, writing nothing', async () => {
+    const message = await failure(() =>
+      handleAppendConfluenceSection({
+        pageId: '123456',
+        heading: 'Intro',
+        expectedVersion: 7,
+      } as never)
+    );
+
+    expect(message).toContain('content');
+    expect(updateConfluencePage).not.toHaveBeenCalled();
+  });
+
+  it('still allows insert to create a section with an empty body', async () => {
+    await handleInsertConfluenceSection({
+      pageId: '123456',
+      heading: 'Intro',
+      newHeading: 'Empty Section',
+      expectedVersion: 7,
+    });
+
+    expect(updateConfluencePage).toHaveBeenCalled();
+  });
+});
+
 describe('the shared write-safety contract applies (task 6.10)', () => {
   it('preserves the title and resolves the version server-side', async () => {
     const result = await handleReplaceConfluenceSection({
