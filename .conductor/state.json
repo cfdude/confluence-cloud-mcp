@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "active": "content-format-round-trip",
+  "active": null,
   "epics": [
     {
       "id": "content-format-round-trip",
       "title": "Fix content round-trip: $1 converter bug, dual-format reads, safe section-scoped + whole-page writes",
       "priority": "P0",
-      "status": "active",
+      "status": "archived",
       "role": "epic",
       "lane": "openspec",
       "links": [],
@@ -17,6 +17,11 @@
           "verdict": "pass",
           "reviewedAt": "2026-08-25T13:44:01.443Z",
           "note": "fresh-context spec review; 2 rounds FAIL (nested-heading section resolution, splice-offset/heading-retention contradiction, layout container ambiguity, stale bullet rule) then pass on 3rd"
+        },
+        "gate2": {
+          "verdict": "pass",
+          "reviewedAt": "2026-08-25T16:49:25.002Z",
+          "note": "fresh-context impl review of 2652064..HEAD; FAIL on silent section-body deletion when content omitted (reproduced live), fixed + re-reviewed pass; no sibling instance of the bug class"
         }
       },
       "autonomy": {
@@ -50,7 +55,8 @@
           "Rob authorized fully unattended execution through section 6, reporting at integration (section 7)"
         ],
         "notifications": []
-      }
+      },
+      "completedAt": "2026-08-25T16:49:39.962Z"
     },
     {
       "id": "content-validator",
@@ -129,7 +135,7 @@
     }
   ],
   "detourStack": [],
-  "revision": 12,
+  "revision": 14,
   "pmVersion": "0.26.0",
   "platform": "claude-code"
 }
