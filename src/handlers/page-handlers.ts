@@ -364,10 +364,18 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
           } catch {
             // Re-read failed; the conflict is still reported, with the version unknown.
           }
-          throw versionConflictError({
-            expectedVersion: page.version.number,
-            currentVersion: liveVersion,
-          });
+          // The re-read also DISPROVES a conflict. Confluence answers 409 for more than a
+          // stale version -- a duplicate title in the space is the other common case, and
+          // `title` is still a supported parameter. If nothing moved, the 409 was about
+          // something else, and reporting "expected version 7 but the page is at version 7"
+          // would be both wrong and self-contradictory. Fall through to Confluence's own
+          // message instead.
+          if (liveVersion === null || liveVersion !== page.version.number) {
+            throw versionConflictError({
+              expectedVersion: page.version.number,
+              currentVersion: liveVersion,
+            });
+          }
         }
 
         console.error(

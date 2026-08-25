@@ -291,6 +291,29 @@ describe('conflicts report identically however detected (task 5.15, design.md D1
     ).rejects.toThrow(/Version conflict: this write expected version 7/);
   });
 
+  it('does NOT report a conflict when the re-read shows the version did not move', async () => {
+    // Confluence answers 409 for a duplicate title too, and `title` is still a supported
+    // parameter. An unchanged version disproves the conflict, so the caller must get
+    // Confluence's own message rather than "expected version 7 but the page is at version 7".
+    getConfluencePage
+      .mockResolvedValueOnce(page({ version: 7 }))
+      .mockResolvedValueOnce(page({ version: 7 }));
+    updateConfluencePage.mockRejectedValue(
+      new ConfluenceApiError(
+        'Confluence API Error: A page with this title already exists in this space',
+        409
+      )
+    );
+
+    await expect(
+      handleUpdateConfluencePage({
+        pageId: '123456',
+        title: 'Already Taken',
+        content: '<p>Fresh body</p>',
+      })
+    ).rejects.toThrow(/Failed to update page.*already exists in this space/);
+  });
+
   it('does not disguise an unrelated API failure as a conflict', async () => {
     updateConfluencePage.mockRejectedValue(
       new ConfluenceApiError('Confluence API Error: Insufficient permissions', 403)
