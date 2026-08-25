@@ -1,7 +1,11 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
-import { convertStorageToMarkdown } from '../utils/content-converter.js';
 import { cachePageInstance } from '../utils/instance-cache.js';
+import {
+  buildPageListEntry,
+  buildPageRetrievalPayload,
+  resolvePageFormat,
+} from '../utils/page-retrieval.js';
 import { withConfluenceContext } from '../utils/tool-wrapper.js';
 import type { ToolArgs } from '../utils/tool-wrapper.js';
 
@@ -31,21 +35,12 @@ export async function handleListConfluencePages(args: ListPagesArgs) {
           await cachePageInstance(page.id, toolArgs.spaceId, instanceName);
         }
 
-        // Transform to minimal format with cursor pagination support
+        // Transform to minimal format with cursor pagination support. Listings carry no
+        // page bodies -- see buildPageListEntry (design.md D11, task 4.9).
         const simplified = {
           instance: instanceName,
           spaceId: toolArgs.spaceId,
-          results: pages.results.map((page) => ({
-            id: page.id,
-            title: page.title,
-            status: page.status.value,
-            parentId: page.parentId || null,
-            createdAt: page.createdAt,
-            version: page.version.number,
-            _links: {
-              webui: page._links.webui,
-            },
-          })),
+          results: pages.results.map(buildPageListEntry),
           cursor: pages._links.next?.split('cursor=')[1],
           limit: pages.limit,
           size: pages.size,
@@ -76,9 +71,13 @@ export async function handleListConfluencePages(args: ListPagesArgs) {
 
 interface GetPageArgs extends ToolArgs {
   pageId: string;
+  format?: string;
 }
 
 export async function handleGetConfluencePage(args: GetPageArgs) {
+  // Validated BEFORE the wrapper so an invalid format returns no page content (task 4.3).
+  const format = resolvePageFormat(args.format);
+
   return withConfluenceContext(
     args,
     { requiresPage: true },
@@ -89,27 +88,7 @@ export async function handleGetConfluencePage(args: GetPageArgs) {
         // Cache the page instance
         await cachePageInstance(page.id, page.spaceId, instanceName);
 
-        // Convert content to markdown
-        const markdownContent = page.body?.storage?.value
-          ? convertStorageToMarkdown(page.body.storage.value)
-          : '';
-
-        // Return simplified format with markdown
-        const simplified = {
-          instance: instanceName,
-          title: page.title,
-          content: markdownContent,
-          metadata: {
-            id: page.id,
-            spaceId: page.spaceId,
-            status: page.status.value,
-            version: page.version.number,
-            createdAt: page.createdAt,
-            lastModified: page.version.createdAt,
-            parentId: page.parentId || null,
-            url: page._links.webui,
-          },
-        };
+        const simplified = buildPageRetrievalPayload(page, instanceName, format);
 
         return {
           content: [
@@ -139,9 +118,13 @@ export async function handleGetConfluencePage(args: GetPageArgs) {
 interface FindPageArgs extends ToolArgs {
   title: string;
   spaceId?: string;
+  format?: string;
 }
 
 export async function handleFindConfluencePage(args: FindPageArgs) {
+  // Same contract as get-by-id, including pre-request validation (design.md D11).
+  const format = resolvePageFormat(args.format);
+
   return withConfluenceContext(
     args,
     { requiresSpace: false },
@@ -152,27 +135,7 @@ export async function handleFindConfluencePage(args: FindPageArgs) {
         // Cache the page instance
         await cachePageInstance(page.id, page.spaceId, instanceName);
 
-        // Convert content to markdown
-        const markdownContent = page.body?.storage?.value
-          ? convertStorageToMarkdown(page.body.storage.value)
-          : '';
-
-        // Return simplified format
-        const simplified = {
-          instance: instanceName,
-          title: page.title,
-          content: markdownContent,
-          metadata: {
-            id: page.id,
-            spaceId: page.spaceId,
-            status: page.status.value,
-            version: page.version.number,
-            createdAt: page.createdAt,
-            lastModified: page.version.createdAt,
-            parentId: page.parentId || null,
-            url: page._links.webui,
-          },
-        };
+        const simplified = buildPageRetrievalPayload(page, instanceName, format);
 
         return {
           content: [

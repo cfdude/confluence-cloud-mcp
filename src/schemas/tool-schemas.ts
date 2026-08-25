@@ -124,6 +124,12 @@ export const toolSchemas: Record<string, ToolSchema> = {
           type: 'string',
           description: 'ID of the page to retrieve',
         },
+        format: {
+          type: 'string',
+          enum: ['markdown', 'storage', 'both'],
+          description:
+            "Content representation to return (default: 'both'). 'markdown' returns the readable rendering under 'content'; 'storage' returns the raw Confluence storage format under 'storage', which is what a write must be authored against; 'both' returns each under its own key.",
+        },
       },
       required: ['pageId'],
     },
@@ -147,6 +153,12 @@ export const toolSchemas: Record<string, ToolSchema> = {
         spaceId: {
           type: 'string',
           description: 'Optional: Limit search to specific space',
+        },
+        format: {
+          type: 'string',
+          enum: ['markdown', 'storage', 'both'],
+          description:
+            "Content representation to return (default: 'both'). 'markdown' returns the readable rendering under 'content'; 'storage' returns the raw Confluence storage format under 'storage', which is what a write must be authored against; 'both' returns each under its own key.",
         },
       },
       required: ['title'],
