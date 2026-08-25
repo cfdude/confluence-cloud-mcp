@@ -214,12 +214,7 @@ export class ConfluenceClient {
       title?: string;
       status?: 'current' | 'archived' | 'draft' | 'trashed';
       sort?:
-        | 'created-date'
-        | '-created-date'
-        | 'modified-date'
-        | '-modified-date'
-        | 'title'
-        | '-title';
+        'created-date' | '-created-date' | 'modified-date' | '-modified-date' | 'title' | '-title';
     } = {}
   ): Promise<PaginatedResponse<Page>> {
     const response = await this.client.get('/pages', {

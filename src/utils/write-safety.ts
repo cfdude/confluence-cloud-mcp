@@ -266,11 +266,7 @@ function sample(value: string): string {
 // ---------------------------------------------------------------------------
 
 export type PreflightCheckName =
-  | 'well-formedness'
-  | 'markdown'
-  | 'macro-placeholder'
-  | 'conversion-artifact'
-  | 'construct-loss';
+  'well-formedness' | 'markdown' | 'macro-placeholder' | 'conversion-artifact' | 'construct-loss';
 
 /**
  * The order checks run in (design.md D10), exported as DATA.
