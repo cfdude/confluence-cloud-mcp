@@ -133,7 +133,7 @@ export function buildPageRetrievalPayload(
     metadata: {
       id: page.id,
       spaceId: page.spaceId,
-      status: page.status.value,
+      status: page.status,
       version: page.version.number,
       createdAt: page.createdAt,
       lastModified: page.version.createdAt,
@@ -166,7 +166,7 @@ export function buildPageListEntry(page: Page): PageListEntry {
   return {
     id: page.id,
     title: page.title,
-    status: page.status.value,
+    status: page.status,
     parentId: page.parentId || null,
     createdAt: page.createdAt,
     version: page.version.number,

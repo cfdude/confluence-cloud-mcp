@@ -42,9 +42,14 @@ export interface Space {
 // V2 Page type
 export interface Page {
   id: string;
-  status: {
-    value: 'current' | 'archived' | 'draft' | 'trashed';
-  };
+  /**
+   * The v2 API returns this as a FLAT STRING (`"current"`), not `{ value }`.
+   *
+   * It was previously declared as `{ value: ... }`, so every `page.status.value` read
+   * evaluated to `undefined` and `status` silently vanished from every page response.
+   * Verified 2026-08-25 against onvex page 15106417.
+   */
+  status: 'current' | 'archived' | 'draft' | 'trashed';
   title: string;
   spaceId: string; // Changed to match v2
   parentId?: string;

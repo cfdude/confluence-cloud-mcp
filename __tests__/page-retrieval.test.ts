@@ -28,7 +28,7 @@ import { loadFixture } from './helpers/fixtures.js';
 function makePage(storage: string | undefined, overrides: Partial<Page> = {}): Page {
   const page = {
     id: '123456',
-    status: 'current' as unknown as Page['status'],
+    status: 'current',
     title: 'TEST: Retrieval Page',
     spaceId: '789',
     parentId: '654321',
@@ -352,14 +352,16 @@ describe('markdown stays under the stable key `content` (task 4.7, design.md D7)
   it('keeps every field a pre-change markdown consumer read', () => {
     const payload = buildPageRetrievalPayload(makePage(loadFixture('plain')), 'onvex', 'both');
 
-    // The shape before this change: instance, title, content, metadata{...}.
+    // The shape before this change: instance, title, content, metadata{...}. `status` now
+    // carries a real value -- it was always meant to, but the `Page` interface declared it as
+    // `{ value }` while the v2 API returns a flat string, so it read as undefined.
     expect(payload.instance).toBe('onvex');
     expect(payload.title).toBe('TEST: Retrieval Page');
     expect(typeof payload.content).toBe('string');
     expect(payload.metadata).toEqual({
       id: '123456',
       spaceId: '789',
-      status: undefined,
+      status: 'current',
       version: 7,
       createdAt: '2026-01-01T00:00:00.000Z',
       lastModified: '2026-02-02T00:00:00.000Z',
@@ -475,20 +477,27 @@ describe('list_confluence_pages carries no page bodies (task 4.9, design.md D11)
 // ---------------------------------------------------------------------------
 
 describe('metadata.status reflects the live v2 API shape', () => {
-  // The v2 API returns `status` as a flat string, so `page.status.value` is undefined and the
-  // key never survives JSON.stringify. Unchanged by this section -- pinned so sections 5 and 6
-  // inherit the real shape rather than the `Page` interface's incorrect declaration.
-  it('drops status from a retrieval response, as it did before this change', () => {
+  // The v2 API returns `status` as a flat string. The `Page` interface previously declared it
+  // as `{ value }`, so every `page.status.value` read was undefined and `status` silently
+  // vanished from every response. The type is now correct and these assert the fix -- they
+  // previously pinned the broken behavior on purpose, and inverting them is the point.
+  it('reports status on a retrieval response', () => {
     const payload = buildPageRetrievalPayload(makePage(loadFixture('plain')), 'onvex', 'both');
 
-    expect(payload.metadata.status).toBeUndefined();
-    expect(JSON.parse(JSON.stringify(payload)).metadata).not.toHaveProperty('status');
+    expect(payload.metadata.status).toBe('current');
+    expect(JSON.parse(JSON.stringify(payload)).metadata).toHaveProperty('status', 'current');
   });
 
-  it('drops status from a listing row, as it did before this change', () => {
+  it('reports status on a listing row', () => {
     const entry = buildPageListEntry(makePage(loadFixture('plain')));
 
-    expect(entry.status).toBeUndefined();
-    expect(JSON.parse(JSON.stringify(entry))).not.toHaveProperty('status');
+    expect(entry.status).toBe('current');
+    expect(JSON.parse(JSON.stringify(entry))).toHaveProperty('status', 'current');
+  });
+
+  it('carries a non-current status through unchanged', () => {
+    const entry = buildPageListEntry(makePage(loadFixture('plain'), { status: 'archived' }));
+
+    expect(entry.status).toBe('archived');
   });
 });
