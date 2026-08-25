@@ -285,7 +285,19 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
     async (toolArgs, { client, instanceName }) => {
       let currentPage: Page | undefined;
       const loadCurrentPage = async (): Promise<Page> => {
-        currentPage ??= await client.getConfluencePage(toolArgs.pageId);
+        if (currentPage) return currentPage;
+        try {
+          currentPage = await client.getConfluencePage(toolArgs.pageId);
+        } catch (error) {
+          if (error instanceof McpError) throw error;
+          throw new McpError(
+            ErrorCode.InternalError,
+            `Failed to read page ${toolArgs.pageId} before updating it: ` +
+              `${error instanceof Error ? error.message : String(error)}. The page was not ` +
+              `modified. The current version and title are read before every write so the ` +
+              `caller does not have to supply them (design.md D5).`
+          );
+        }
         return currentPage;
       };
 
