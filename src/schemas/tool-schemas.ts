@@ -273,7 +273,7 @@ Title and version are handled for you: the title is preserved when omitted, and 
 
 The heading itself is retained -- do NOT re-supply it in "content", or the page ends up with two.
 
-SCOPE, read before using: a section runs from its heading to the next heading at the same or a higher level in the same container. NESTED SUBSECTIONS ARE PART OF IT. Replacing an h2 that has h3 subsections under it replaces those subsections and their content too. To touch only the prose under one heading, target the deepest heading that covers it, or use append_confluence_section instead.
+SCOPE, read before using: a section runs from its heading to the next heading at the same or a higher level in the same container. NESTED SUBSECTIONS ARE PART OF IT. Replacing an h2 that has h3 subsections under it replaces those subsections and their content too. To rewrite only the prose under one heading, target the deepest heading that covers just that prose; if no such heading exists, include the subsections you want to keep in the replacement content.
 
 Everything outside the section is preserved byte-for-byte: the rest of the page is carried through as raw bytes and never parsed, so macros, layouts and third-party app markup cannot be damaged. That is what makes this safer than update_confluence_page.
 
