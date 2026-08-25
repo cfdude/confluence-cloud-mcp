@@ -20,11 +20,7 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 
 import type { Page } from '../types/index.js';
-import {
-  operationSpan,
-  resolveSectionIn,
-  type ResolvedSection,
-} from '../utils/section-editing.js';
+import { operationSpan, resolveSectionIn, type ResolvedSection } from '../utils/section-editing.js';
 import { withConfluenceContext } from '../utils/tool-wrapper.js';
 import type { ToolArgs } from '../utils/tool-wrapper.js';
 import {
@@ -105,7 +101,7 @@ function buildReport(options: {
   allowMarkdownContent: boolean;
   confirmConstructRemoval: boolean;
 }) {
-  const { failures, page, scopedHeading, allowMarkdownContent, confirmConstructRemoval } = options;
+  const { failures, page, allowMarkdownContent, confirmConstructRemoval } = options;
 
   const skipped: SkippedCheck[] = [];
   if (allowMarkdownContent) {

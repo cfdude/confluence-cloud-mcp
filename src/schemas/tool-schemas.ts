@@ -469,7 +469,7 @@ A clean result is about CONTENT. A write can still fail afterwards on a stale ex
         pageId: {
           type: 'string',
           description:
-            "Optional: the page this content is destined for. Supply it to also check, against that page's current body, whether the write would drop macros or layouts -- the one check that needs a comparison target. Also returns the page's current version, ready to pass as expectedVersion. Omit it for create_confluence_page and for append/insert section edits, which remove nothing. For a replace_confluence_section fragment, supply it together with \"heading\".",
+            'Optional: the page this content is destined for. Supply it to also check, against that page\'s current body, whether the write would drop macros or layouts -- the one check that needs a comparison target. Also returns the page\'s current version, ready to pass as expectedVersion. Omit it for create_confluence_page and for append/insert section edits, which remove nothing. For a replace_confluence_section fragment, supply it together with "heading".',
         },
         heading: {
           type: 'string',
