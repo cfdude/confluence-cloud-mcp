@@ -3,6 +3,7 @@ import axios, {
   AxiosError,
   RawAxiosResponseHeaders,
   AxiosResponseHeaders,
+  InternalAxiosRequestConfig,
   isAxiosError,
 } from 'axios';
 
@@ -17,6 +18,23 @@ import type {
   V1SearchResponse,
 } from '../types/index.js';
 import { ConfluenceApiError, ConfluenceError } from '../types/index.js';
+
+/**
+ * 429 retry budget for the v2 client.
+ *
+ * The interceptor re-issues a rate-limited request, and the retry re-enters the interceptor,
+ * so without a budget a server stuck on 429 keeps the MCP call alive forever -- the agent
+ * waits on a tool that will never answer. Three retries and a 30s ceiling bound the worst
+ * case at roughly a minute and a half before a clear, terminal error.
+ */
+const MAX_RATE_LIMIT_RETRIES = 3;
+/** Confluence's reset header can already be in the past; never hot-loop on it. */
+const MIN_RATE_LIMIT_WAIT_MS = 1_000;
+/** A far-future reset header must not park the call for hours. */
+const MAX_RATE_LIMIT_WAIT_MS = 30_000;
+
+/** The v2 request config, carrying the retry counter across re-issues. */
+type RateLimitedRequestConfig = InternalAxiosRequestConfig & { __rateLimitRetries?: number };
 
 export class ConfluenceClient {
   private client: AxiosInstance;
@@ -104,14 +122,34 @@ export class ConfluenceClient {
       },
       async (error: AxiosError) => {
         if (error.response?.status === 429) {
-          // Rate limit exceeded
+          const config = error.config as RateLimitedRequestConfig | undefined;
+          const retriesSoFar = config?.__rateLimitRetries ?? 0;
+
+          if (!config || retriesSoFar >= MAX_RATE_LIMIT_RETRIES) {
+            throw new ConfluenceApiError(
+              `Confluence API rate limit exceeded: gave up after ${MAX_RATE_LIMIT_RETRIES} ` +
+                `retries. Retry later, or reduce the request rate.`,
+              429,
+              error.response.data
+            );
+          }
+
           const resetTime = parseInt(
             String(error.response.headers['x-ratelimit-reset'] || '0'),
             10
           );
-          const waitTime = Math.max(resetTime - Date.now(), 1000);
+          const waitTime = Math.min(
+            Math.max(resetTime - Date.now(), MIN_RATE_LIMIT_WAIT_MS),
+            MAX_RATE_LIMIT_WAIT_MS
+          );
           await new Promise((resolve) => setTimeout(resolve, waitTime));
-          return this.client.request(error.config!);
+          // The counter rides on the re-issued config so it survives re-entering this same
+          // interceptor -- that, not a closure variable, is what bounds a retry LOOP.
+          const retryConfig: RateLimitedRequestConfig = {
+            ...config,
+            __rateLimitRetries: retriesSoFar + 1,
+          };
+          return this.client.request(retryConfig);
         }
         throw this.handleError(error);
       }

@@ -372,8 +372,9 @@ describe('error mapping', () => {
   it.each([401, 403, 404, 500, 503])(
     'maps a %i into a ConfluenceApiError carrying that status',
     async (status) => {
-      // 429 is excluded on purpose: the retry interceptor swallows it and retries forever.
-      // See the `429 backoff` block.
+      // 429 is excluded on purpose: the interceptor retries it before any method sees it, and
+      // only surfaces a (429-carrying) error once the retry budget is spent. See the
+      // `429 backoff` block.
       always({ status, data: { message: 'x' } });
 
       const error = await client()
@@ -535,11 +536,10 @@ describe('429 backoff', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('retries with no cap, so a persistently rate-limited endpoint loops', async () => {
-    // Documented, not fixed: the interceptor re-issues the request unconditionally and the
-    // retry re-enters the same interceptor. There is no attempt counter and no ceiling on the
-    // wait; a server stuck on 429 keeps the call alive indefinitely. Bounded here to three
-    // rounds purely so the test terminates.
+  it('spends the whole retry budget -- 3 retries after the initial attempt -- and succeeds', async () => {
+    // The budget is exactly three retries, so a run that needs all three still completes:
+    // four requests in total. Sitting on the boundary is deliberate -- an off-by-one in
+    // either direction breaks this test rather than silently changing the budget.
     jest.useFakeTimers();
     responder = (_call, index) =>
       index < 3
@@ -555,6 +555,47 @@ describe('429 backoff', () => {
     await pending;
 
     expect(calls).toHaveLength(4);
+  });
+
+  it('gives up on a server stuck at 429 instead of retrying forever', async () => {
+    // The retry counter rides on the request config, so it has to survive axios re-issuing
+    // the request through the same interceptor. If it does not, this test HANGS rather than
+    // failing -- that hang is the signal that the budget is not propagating.
+    jest.useFakeTimers();
+    always({ status: 429, data: { message: 'slow down' }, headers: { 'x-ratelimit-reset': '0' } });
+
+    // `getConfluenceSpace` has no catch of its own, so the terminal error arrives unaltered.
+    const c = client();
+    const pending = c.getConfluenceSpace('1').catch((e) => e);
+
+    await jest.advanceTimersByTimeAsync(10_000);
+    const error = await pending;
+
+    expect(error).toBeInstanceOf(ConfluenceApiError);
+    expect(error.status).toBe(429);
+    expect(error.message).toContain('rate limit');
+    expect(error.message).toContain('3 retries');
+    // initial attempt + 3 retries, and nothing after.
+    expect(calls).toHaveLength(4);
+  });
+
+  it('caps the wait at 30s however far out the reset time is', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(0);
+    inOrder(
+      { status: 429, data: {}, headers: { 'x-ratelimit-reset': String(60 * 60 * 1000) } },
+      { status: 200, data: v2Page({ body: { storage: { value: '<p>hi</p>' } } }) }
+    );
+
+    const c = client();
+    const pending = c.getConfluencePage('1');
+
+    await jest.advanceTimersByTimeAsync(29_999);
+    expect(calls).toHaveLength(1);
+
+    await jest.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(calls).toHaveLength(2);
   });
 
   it('does NOT retry a 429 on the v1 client', async () => {
