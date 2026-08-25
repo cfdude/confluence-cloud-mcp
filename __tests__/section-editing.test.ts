@@ -219,6 +219,23 @@ describe('layout cells are sectioning containers (task 6.1c)', () => {
     expect(isWellFormed(tokenize(result))).toBe(true);
   });
 
+  it('a heading directly inside ac:layout-section resolves to that container, not a cell', () => {
+    // The `sectioning`-but-not-a-cell path. Every other layout test here lands on
+    // `ac:layout-cell`, so without this the container-end fallback for `ac:layout-section`
+    // (and `ac:layout`) never executes.
+    const direct =
+      '<ac:layout><ac:layout-section ac:type="single"><h2>Direct</h2><p>x</p>' +
+      '</ac:layout-section></ac:layout>';
+    const section = sectionOf(direct, 'Direct');
+
+    expect(section.container.name).toBe('ac:layout-section');
+    expect(section.sectionEnd).toBe(section.container.contentEnd);
+    expect(direct.slice(section.sectionEnd)).toBe('</ac:layout-section></ac:layout>');
+    expect(edit(direct, 'Direct', 'replace', '<p>y</p>')).toBe(
+      direct.replace('<p>x</p>', '<p>y</p>')
+    );
+  });
+
   it('a macro inside a cell does not truncate that cell section', () => {
     const section = sectionOf(source, 'Right One');
     expect(section.sectionEnd).toBe(source.indexOf('<h2>Right Two</h2>'));
@@ -382,6 +399,18 @@ describe('the splice preserves everything outside the span (tasks 6.6, 6.11)', (
     expect(result.slice(span.start + '<p>rewritten</p>'.length)).toBe(after);
     expect(result).toBe(before + '<p>rewritten</p>' + after);
     expect(isWellFormed(tokenize(result))).toBe(true);
+  });
+
+  it('bounds consecutive sections in one cell, then falls back to the cell end', () => {
+    // On the real page both of these h1s share one `ac:layout-cell`, so the first is bounded
+    // by the second and the second falls back to the cell's own contentEnd.
+    const first = sectionOf(captured, 'Mu fugiat excepteur');
+    const second = sectionOf(captured, 'Ipsum sunt: Aliqua & kappa');
+
+    expect(first.container.index).toBe(second.container.index);
+    expect(first.sectionEnd).toBe(second.headingStart);
+    expect(second.sectionEnd).toBe(second.container.contentEnd);
+    expect(captured.slice(second.sectionEnd, second.sectionEnd + 17)).toBe('</ac:layout-cell>');
   });
 
   it('every macro outside the replaced span survives as the exact same bytes', () => {
