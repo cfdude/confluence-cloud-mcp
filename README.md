@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that provides tools for interacting with C
 
 **Now with multi-instance support!** Work with multiple Confluence instances seamlessly. See [CONFIGURATION.md](CONFIGURATION.md) for details.
 
-[![CI/CD Pipeline](https://github.com/aaronsb/confluence-cloud-mcp/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/aaronsb/confluence-cloud-mcp/actions/workflows/ci-cd.yml)
+[![CI/CD Pipeline](https://github.com/cfdude/confluence-cloud-mcp/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/cfdude/confluence-cloud-mcp/actions/workflows/ci-cd.yml)
 
 ## Features
 
@@ -60,14 +60,14 @@ docker run --rm -i \
   -e CONFLUENCE_API_TOKEN=your-api-token \
   -e CONFLUENCE_EMAIL=your-email@domain.com \
   -e CONFLUENCE_DOMAIN=your-domain.atlassian.net \
-  ghcr.io/aaronsb/confluence-cloud-mcp:latest
+  ghcr.io/cfdude/confluence-cloud-mcp:latest
 ```
 
 ### Option 2: Building Locally
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/aaronsb/confluence-cloud-mcp.git
+git clone https://github.com/cfdude/confluence-cloud-mcp.git
 cd confluence-cloud-mcp
 ```
 
@@ -160,7 +160,7 @@ The server can be integrated with MCP-compatible AI assistants by adding it to t
   "mcpServers": {
     "confluence": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/aaronsb/confluence-cloud-mcp:latest"],
+      "args": ["run", "--rm", "-i", "ghcr.io/cfdude/confluence-cloud-mcp:latest"],
       "env": {
         "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@domain.com",
@@ -297,4 +297,11 @@ For local development, use the provided scripts:
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).
+
+## Credits
+
+This project began as a fork of `aaronsb/confluence-cloud-mcp` by Aaron Bockelie, which laid the
+original foundation for this server. That repository is no longer available, so the link is
+omitted deliberately; this one is now maintained independently by Rob Sherman. Thanks to Aaron
+for the original work.

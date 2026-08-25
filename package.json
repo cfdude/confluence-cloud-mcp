@@ -3,6 +3,7 @@
   "version": "1.11.0",
   "description": "A Model Context Protocol Server for Atlassian Confluence Cloud",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "bin": {
     "confluence-cloud": "./build/index.js",
