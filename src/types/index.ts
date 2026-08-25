@@ -217,6 +217,25 @@ export class ConfluenceError extends Error {
   }
 }
 
+/**
+ * An HTTP-level failure from the Confluence API, with the status preserved.
+ *
+ * The client's axios interceptor used to flatten every API failure to a bare `Error`, which
+ * discarded the status before any caller could see it. Write-safety needs it: telling a
+ * version conflict apart from a permission failure is what makes design.md D12's uniform
+ * conflict shape possible, and a message-only heuristic is not good enough for a write path.
+ */
+export class ConfluenceApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly responseData?: unknown
+  ) {
+    super(message);
+    this.name = 'ConfluenceApiError';
+  }
+}
+
 // Rate Limit Info
 export interface RateLimitInfo {
   limit: number;

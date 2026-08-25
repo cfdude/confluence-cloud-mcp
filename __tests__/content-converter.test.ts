@@ -36,9 +36,7 @@ describe('unordered and nested lists (task 3.2)', () => {
   });
 
   it('indents a nested list under an ordered item by the marker width', () => {
-    const markdown = convertStorageToMarkdown(
-      '<ol><li>outer<ul><li>inner</li></ul></li></ol>'
-    );
+    const markdown = convertStorageToMarkdown('<ol><li>outer<ul><li>inner</li></ul></li></ol>');
     // `1. ` is three characters wide, so the nested item aligns under the item text.
     expect(markdown).toBe('1. outer\n   * inner');
   });
@@ -118,9 +116,7 @@ describe('headings, paragraphs, inline markup, links, code and tables (task 3.4)
     expect(convertStorageToMarkdown('<p>See <a href="https://example.com/x">docs</a>.</p>')).toBe(
       'See [docs](https://example.com/x).'
     );
-    expect(convertStorageToMarkdown('<p>run <code>npm test</code></p>')).toBe(
-      'run `npm test`'
-    );
+    expect(convertStorageToMarkdown('<p>run <code>npm test</code></p>')).toBe('run `npm test`');
     expect(convertStorageToMarkdown('<pre>line one\nline two</pre>')).toBe(
       '```\nline one\nline two\n```'
     );

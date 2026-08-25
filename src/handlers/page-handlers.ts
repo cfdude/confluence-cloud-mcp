@@ -1,5 +1,6 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
+import type { Page } from '../types/index.js';
 import { cachePageInstance } from '../utils/instance-cache.js';
 import {
   buildPageListEntry,
@@ -8,6 +9,13 @@ import {
 } from '../utils/page-retrieval.js';
 import { withConfluenceContext } from '../utils/tool-wrapper.js';
 import type { ToolArgs } from '../utils/tool-wrapper.js';
+import {
+  assertExpectedVersion,
+  assertWriteIsSafe,
+  isVersionConflictResponse,
+  resolveWriteVersion,
+  versionConflictError,
+} from '../utils/write-safety.js';
 
 interface ListPagesArgs extends ToolArgs {
   spaceId: string;
@@ -167,6 +175,7 @@ interface CreatePageArgs extends ToolArgs {
   title: string;
   content: string;
   parentId?: string;
+  allowMarkdownContent?: boolean;
 }
 
 export async function handleCreateConfluencePage(args: CreatePageArgs) {
@@ -174,6 +183,15 @@ export async function handleCreateConfluencePage(args: CreatePageArgs) {
     args,
     { requiresSpace: true },
     async (toolArgs, { client, instanceName, spaceConfig }) => {
+      // Content checks run BEFORE any request, so a rejected create creates nothing
+      // (tasks 5.14, 5.16). Construct-loss is absent by design: there is no prior version to
+      // compare against (design.md D11). Deliberately outside the try below -- these errors
+      // are the actionable ones and must not be rewrapped as "Failed to create page".
+      await assertWriteIsSafe({
+        content: toolArgs.content,
+        allowMarkdownContent: toolArgs.allowMarkdownContent,
+      });
+
       try {
         // Apply default parent page if configured and not provided
         const parentId = toolArgs.parentId || spaceConfig?.defaultParentPageId;
@@ -238,9 +256,26 @@ export async function handleCreateConfluencePage(args: CreatePageArgs) {
 
 interface UpdatePageArgs extends ToolArgs {
   pageId: string;
-  title: string;
+  /**
+   * Optional (task 5.1). Omitted means "keep the current title".
+   *
+   * It used to be REQUIRED, which inverted the risk: an agent editing only body content had to
+   * restate the title, and any paraphrase silently RENAMED the page.
+   */
+  title?: string;
   content: string;
-  version: number;
+  /** Optional optimistic-concurrency check (design.md D5). */
+  expectedVersion?: number;
+  confirmConstructRemoval?: boolean;
+  allowMarkdownContent?: boolean;
+  /**
+   * Accepted and IGNORED, for callers written against the old schema.
+   *
+   * NOT mapped onto `expectedVersion`: an old caller was told to send `current + 1`, so
+   * treating it as an expectation would turn every legacy call into a spurious conflict. The
+   * server resolves the write version itself (design.md D5).
+   */
+  version?: number;
 }
 
 export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
@@ -248,16 +283,44 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
     args,
     { requiresPage: true },
     async (toolArgs, { client, instanceName }) => {
+      let currentPage: Page | undefined;
+      const loadCurrentPage = async (): Promise<Page> => {
+        currentPage ??= await client.getConfluencePage(toolArgs.pageId);
+        return currentPage;
+      };
+
+      // Preflight, ordered per design.md D10. The content-only checks need nothing from
+      // Confluence, so malformed or markdown content is rejected without a single request;
+      // the current page is fetched lazily, only if the pipeline reaches construct-loss.
+      await assertWriteIsSafe({
+        content: toolArgs.content,
+        allowMarkdownContent: toolArgs.allowMarkdownContent,
+        confirmConstructRemoval: toolArgs.confirmConstructRemoval,
+        currentContent: async () => {
+          const page = await loadCurrentPage();
+          assertExpectedVersion(toolArgs.expectedVersion, page.version.number);
+          return page.body?.storage?.value ?? '';
+        },
+      });
+
+      const page = await loadCurrentPage();
+      // Repeated because `confirmConstructRemoval` short-circuits the check above before the
+      // resolver runs. Pure and idempotent, so running it twice costs nothing.
+      assertExpectedVersion(toolArgs.expectedVersion, page.version.number);
+
+      const title = toolArgs.title ?? page.title;
+      const nextVersion = resolveWriteVersion(page.version.number);
+
       try {
-        const page = await client.updateConfluencePage(
+        const updated = await client.updateConfluencePage(
           toolArgs.pageId,
-          toolArgs.title,
+          title,
           toolArgs.content,
-          toolArgs.version
+          nextVersion
         );
 
         // Update cache with the latest instance info
-        await cachePageInstance(page.id, page.spaceId, instanceName);
+        await cachePageInstance(updated.id, updated.spaceId, instanceName);
 
         return {
           content: [
@@ -267,10 +330,10 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
                 {
                   instance: instanceName,
                   message: 'Page updated successfully',
-                  pageId: page.id,
-                  title: page.title,
-                  version: page.version.number,
-                  url: page._links.webui,
+                  pageId: updated.id,
+                  title: updated.title,
+                  version: updated.version.number,
+                  url: updated._links.webui,
                 },
                 null,
                 2
@@ -279,6 +342,22 @@ export async function handleUpdateConfluencePage(args: UpdatePageArgs) {
           ],
         };
       } catch (error) {
+        // A concurrent edit can land between resolving the version and submitting the write.
+        // Confluence rejecting it is reported in the SAME shape as the local check
+        // (design.md D12), so a caller has one case to handle.
+        if (isVersionConflictResponse(error)) {
+          let liveVersion: number | null = null;
+          try {
+            liveVersion = (await client.getConfluencePage(toolArgs.pageId)).version.number;
+          } catch {
+            // Re-read failed; the conflict is still reported, with the version unknown.
+          }
+          throw versionConflictError({
+            expectedVersion: page.version.number,
+            currentVersion: liveVersion,
+          });
+        }
+
         console.error(
           'Error updating page:',
           error instanceof Error ? error.message : String(error)

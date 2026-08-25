@@ -192,6 +192,11 @@ export const toolSchemas: Record<string, ToolSchema> = {
           type: 'string',
           description: 'Optional: ID of the parent page',
         },
+        allowMarkdownContent: {
+          type: 'boolean',
+          description:
+            'Optional: proceed even though the content looks like markdown. Only for prose that genuinely documents markdown syntax outside a code block.',
+        },
       },
       required: ['spaceId', 'title', 'content'],
     },
@@ -199,7 +204,7 @@ export const toolSchemas: Record<string, ToolSchema> = {
 
   update_confluence_page: {
     description:
-      'Update an existing Confluence page. Requires the current version number to prevent conflicts. Content should be in Confluence storage format. IMPORTANT: Always get the current version with get_confluence_page first. TIP: Increment the version number by 1 when updating.',
+      'Update an existing Confluence page. Content must be in Confluence storage format (XHTML) -- markdown is rejected, because Confluence stores the markdown syntax literally rather than rendering it. Read the page with get_confluence_page (format: "storage") and author against that markup. The title is optional and is preserved when omitted. The server resolves the version number itself; do not compute or increment one.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -214,18 +219,30 @@ export const toolSchemas: Record<string, ToolSchema> = {
         },
         title: {
           type: 'string',
-          description: 'New title for the page',
+          description:
+            'Optional: new title for the page. Omit to keep the current title -- do not restate it.',
         },
         content: {
           type: 'string',
           description: 'New content in Confluence storage format (XHTML)',
         },
-        version: {
+        expectedVersion: {
           type: 'number',
-          description: 'Current version number of the page (required for conflict detection)',
+          description:
+            'Optional: the version the edit was based on. When supplied, the write fails without modifying the page if someone else has changed it since.',
+        },
+        confirmConstructRemoval: {
+          type: 'boolean',
+          description:
+            'Optional: confirm that removing macros or layouts present on the current page is intended. Does NOT override a markdown rejection.',
+        },
+        allowMarkdownContent: {
+          type: 'boolean',
+          description:
+            'Optional: proceed even though the content looks like markdown. Only for prose that genuinely documents markdown syntax outside a code block.',
         },
       },
-      required: ['pageId', 'title', 'content', 'version'],
+      required: ['pageId', 'content'],
     },
   },
 
