@@ -6,6 +6,7 @@
  * raw text with zero byte differences, on every fixture including the 17 KB captured page.
  */
 
+import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 import {
   ancestorsOf,
   attributeValue,
@@ -19,8 +20,6 @@ import {
   type StorageElement,
   type TokenizeResult,
 } from '../src/utils/storage-tokenizer.js';
-
-import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 
 const fixtures = listFixtureFiles();
 

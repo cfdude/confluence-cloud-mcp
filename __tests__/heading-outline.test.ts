@@ -1,12 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
 
+import { loadFixture } from './helpers/fixtures.js';
 import {
   collectHeadingOutline,
   foldHeadingText,
   headingOutline,
 } from '../src/utils/heading-outline.js';
 import { tokenize } from '../src/utils/storage-tokenizer.js';
-import { loadFixture } from './helpers/fixtures.js';
 
 describe('headingOutline -- levels and document order (task 4.6)', () => {
   it('lists every heading in document order with its level', () => {

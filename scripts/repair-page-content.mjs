@@ -116,14 +116,46 @@ function stripCodeRegions(body) {
 // ---------------------------------------------------------------------------
 
 const INLINE_ELEMENTS = new Set([
-  'a', 'abbr', 'b', 'big', 'br', 'cite', 'code', 'del', 'em', 'i', 'ins', 'kbd', 'q', 's',
-  'samp', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'var',
+  'a',
+  'abbr',
+  'b',
+  'big',
+  'br',
+  'cite',
+  'code',
+  'del',
+  'em',
+  'i',
+  'ins',
+  'kbd',
+  'q',
+  's',
+  'samp',
+  'small',
+  'span',
+  'strong',
+  'sub',
+  'sup',
+  'time',
+  'u',
+  'var',
 ]);
 
 const NAMED_ENTITIES = {
-  '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'",
-  '&apos;': "'", '&ndash;': '-', '&mdash;': '-', '&rsquo;': "'", '&lsquo;': "'",
-  '&rdquo;': '"', '&ldquo;': '"', '&hellip;': '...',
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&apos;': "'",
+  '&ndash;': '-',
+  '&mdash;': '-',
+  '&rsquo;': "'",
+  '&lsquo;': "'",
+  '&rdquo;': '"',
+  '&ldquo;': '"',
+  '&hellip;': '...',
 };
 
 /**
@@ -504,10 +536,15 @@ function loadInstance(name) {
   const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
   const instance = config.instances?.[name];
   if (!instance) {
-    throw new Error(`Unknown instance "${name}". Configured: ${Object.keys(config.instances || {}).join(', ')}`);
+    throw new Error(
+      `Unknown instance "${name}". Configured: ${Object.keys(config.instances || {}).join(', ')}`
+    );
   }
   const auth = Buffer.from(`${instance.email}:${instance.apiToken}`).toString('base64');
-  return { domain: instance.domain, headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } };
+  return {
+    domain: instance.domain,
+    headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+  };
 }
 
 async function getJson(site, path) {
@@ -521,7 +558,11 @@ async function getJson(site, path) {
 
 async function fetchCurrent(site, pageId) {
   const page = await getJson(site, `/wiki/api/v2/pages/${pageId}?body-format=storage`);
-  return { title: page.title, version: page.version?.number, body: page.body?.storage?.value ?? '' };
+  return {
+    title: page.title,
+    version: page.version?.number,
+    body: page.body?.storage?.value ?? '',
+  };
 }
 
 /**
@@ -557,10 +598,18 @@ async function findCleanVersion(site, pageId) {
 function plan(current, clean) {
   const currentSig = signatures(current.body);
   if (isClean(currentSig)) {
-    return { strategy: 'noop', reason: 'no corruption signature on the current version', currentSig };
+    return {
+      strategy: 'noop',
+      reason: 'no corruption signature on the current version',
+      currentSig,
+    };
   }
   if (!clean) {
-    return { strategy: 'skip', reason: 'no version without a corruption signature exists in history', currentSig };
+    return {
+      strategy: 'skip',
+      reason: 'no version without a corruption signature exists in history',
+      currentSig,
+    };
   }
 
   const cleanSig = signatures(clean.body);
@@ -587,15 +636,29 @@ function plan(current, clean) {
         redactions: hits,
       };
     }
-    return { ...context, strategy: 'revert', reason: `current version adds no text absent from v${clean.number}` };
+    return {
+      ...context,
+      strategy: 'revert',
+      reason: `current version adds no text absent from v${clean.number}`,
+    };
   }
 
   // Placeholders, but the counts line up per name and nothing else is wrong: splice.
-  if (currentSig.placeholder > 0 && currentSig.artifact === 0 && currentSig.heading === 0 &&
-      currentSig.emphasis === 0 && currentSig.fence === 0) {
+  if (
+    currentSig.placeholder > 0 &&
+    currentSig.artifact === 0 &&
+    currentSig.heading === 0 &&
+    currentSig.emphasis === 0 &&
+    currentSig.fence === 0
+  ) {
     const spliced = macroSplice(current.body, clean.body);
     if (!spliced.ok) return { ...context, strategy: 'skip', reason: spliced.reason };
-    return { ...context, strategy: 'macro-splice', reason: `restored ${spliced.restored} macro(s) from v${clean.number}`, content: spliced.content };
+    return {
+      ...context,
+      strategy: 'macro-splice',
+      reason: `restored ${spliced.restored} macro(s) from v${clean.number}`,
+      content: spliced.content,
+    };
   }
 
   if (destroyed) {
@@ -622,7 +685,12 @@ function plan(current, clean) {
   }
 
   const converted = markdownToStorage(current.body);
-  return { ...context, strategy: 'md2storage', reason: 'markdown leak only; no construct was destroyed', content: converted };
+  return {
+    ...context,
+    strategy: 'md2storage',
+    reason: 'markdown leak only; no construct was destroyed',
+    content: converted,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -659,7 +727,11 @@ function parseArgs(argv) {
   for (const arg of argv) {
     const [key, value] = arg.startsWith('--') ? arg.slice(2).split('=') : [null, null];
     if (key === 'instance') args.instance = value;
-    else if (key === 'pages') args.pages = value.split(',').map((s) => s.trim()).filter(Boolean);
+    else if (key === 'pages')
+      args.pages = value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     else if (key === 'pages-file') args.pagesFile = value;
     else if (key === 'out') args.out = value;
     else if (key === 'apply') args.apply = true;
@@ -670,11 +742,16 @@ function parseArgs(argv) {
   if (!args.out) throw new Error('--out=<dir> is required (put it OUTSIDE this repository)');
   if (args.pagesFile) {
     args.pages = readFileSync(args.pagesFile.replace(/^~/, homedir()), 'utf8')
-      .split('\n').map((l) => l.replace(/#.*$/, '').trim()).filter(Boolean);
+      .split('\n')
+      .map((l) => l.replace(/#.*$/, '').trim())
+      .filter(Boolean);
   }
-  if (args.pages.length === 0) throw new Error('--pages=<id,id,...> or --pages-file=<path> is required');
+  if (args.pages.length === 0)
+    throw new Error('--pages=<id,id,...> or --pages-file=<path> is required');
   if (resolve(args.out).startsWith(REPO_ROOT)) {
-    throw new Error('--out must be outside the repository: this repo is public and diffs contain page content');
+    throw new Error(
+      '--out must be outside the repository: this repo is public and diffs contain page content'
+    );
   }
   return args;
 }
@@ -685,7 +762,11 @@ async function main() {
   const { preflight } = await loadPreflight();
   mkdirSync(args.out, { recursive: true });
 
-  console.log(args.apply ? '*** APPLY MODE -- pages will be written ***' : 'DRY RUN -- nothing will be written');
+  console.log(
+    args.apply
+      ? '*** APPLY MODE -- pages will be written ***'
+      : 'DRY RUN -- nothing will be written'
+  );
   console.log(`instance=${args.instance} pages=${args.pages.length} out=${args.out}\n`);
 
   const results = [];
@@ -704,9 +785,11 @@ async function main() {
       record.signatures = decision.currentSig;
 
       const nextBody =
-        decision.strategy === 'revert' ? clean.body
-        : decision.strategy === 'md2storage' || decision.strategy === 'macro-splice' ? decision.content
-        : null;
+        decision.strategy === 'revert'
+          ? clean.body
+          : decision.strategy === 'md2storage' || decision.strategy === 'macro-splice'
+            ? decision.content
+            : null;
 
       if (nextBody !== null) {
         // The repaired body must satisfy the server's own preflight UNAIDED. An override flag
@@ -738,7 +821,8 @@ async function main() {
         });
         const after = await fetchCurrent(site, pageId);
         record.versionAfter = after.version;
-        record.verified = isClean(signatures(after.body)) && lostText(current.body, after.body).length === 0;
+        record.verified =
+          isClean(signatures(after.body)) && lostText(current.body, after.body).length === 0;
       }
     } catch (error) {
       record.strategy = 'error';
@@ -747,8 +831,10 @@ async function main() {
     results.push(record);
     console.log(
       `${pageId}  v${record.versionBefore ?? '?'}${record.versionAfter ? `->v${record.versionAfter}` : ''}  ` +
-      `${String(record.strategy).padEnd(13)} ${record.reason}` +
-      (record.lostText?.length ? `  [!! ${record.lostText.length} text line(s) would be lost]` : '')
+        `${String(record.strategy).padEnd(13)} ${record.reason}` +
+        (record.lostText?.length
+          ? `  [!! ${record.lostText.length} text line(s) would be lost]`
+          : '')
     );
   }
 
@@ -769,15 +855,29 @@ function renderDiff(instance, pageId, current, clean, decision, nextBody) {
     '',
   ];
   if (decision.redactions?.length) {
-    parts.push(`=== REDACTION-SIGNATURE LINES BLOCKING A REVERT (${decision.redactions.length}) ===`);
+    parts.push(
+      `=== REDACTION-SIGNATURE LINES BLOCKING A REVERT (${decision.redactions.length}) ===`
+    );
     parts.push(...decision.redactions.map((h) => `[${h.id}] ${h.line}`), '');
   }
   if (decision.onlyInCurrent) {
-    parts.push(`=== TEXT ONLY IN CURRENT (${decision.onlyInCurrent.length}) ===`, ...decision.onlyInCurrent, '');
-    parts.push(`=== TEXT ONLY IN CLEAN v${decision.cleanVersion} (${decision.onlyInClean.length}) ===`, ...decision.onlyInClean, '');
+    parts.push(
+      `=== TEXT ONLY IN CURRENT (${decision.onlyInCurrent.length}) ===`,
+      ...decision.onlyInCurrent,
+      ''
+    );
+    parts.push(
+      `=== TEXT ONLY IN CLEAN v${decision.cleanVersion} (${decision.onlyInClean.length}) ===`,
+      ...decision.onlyInClean,
+      ''
+    );
   }
   if (nextBody !== null) {
-    parts.push(`=== TEXT LOST BY THE REPAIR (must be empty) ===`, ...lostText(current.body, nextBody), '');
+    parts.push(
+      `=== TEXT LOST BY THE REPAIR (must be empty) ===`,
+      ...lostText(current.body, nextBody),
+      ''
+    );
     parts.push('=== BEFORE ===', current.body, '', '=== AFTER ===', nextBody, '');
   }
   return parts.join('\n');

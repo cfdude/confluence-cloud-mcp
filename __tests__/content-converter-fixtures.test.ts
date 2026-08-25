@@ -21,9 +21,9 @@
 
 import { describe, it, expect } from '@jest/globals';
 
+import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 import { convertStorage } from '../src/utils/content-converter.js';
 import { ancestorsOfToken, tokenize } from '../src/utils/storage-tokenizer.js';
-import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 
 /** Element interiors whose text is machine metadata rather than prose. */
 const METADATA_ELEMENTS = new Set(['ac:task-id', 'ac:task-status']);

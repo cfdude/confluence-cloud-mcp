@@ -1,10 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
 
+import { loadFixture } from './helpers/fixtures.js';
 import {
   handleFindConfluencePage,
   handleGetConfluencePage,
 } from '../src/handlers/page-handlers.js';
+import type { Page } from '../src/types/index.js';
 import {
   DEFAULT_PAGE_FORMAT,
   PAGE_FORMATS,
@@ -12,8 +14,6 @@ import {
   buildPageRetrievalPayload,
   resolvePageFormat,
 } from '../src/utils/page-retrieval.js';
-import type { Page } from '../src/types/index.js';
-import { loadFixture } from './helpers/fixtures.js';
 
 /**
  * Build a `Page` matching what the LIVE v2 API returns.

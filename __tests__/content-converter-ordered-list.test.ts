@@ -31,8 +31,8 @@
 
 import { describe, it, expect } from '@jest/globals';
 
-import { convertStorageToMarkdown } from '../src/utils/content-converter.js';
 import { loadFixture } from './helpers/fixtures.js';
+import { convertStorageToMarkdown } from '../src/utils/content-converter.js';
 
 describe('ordered list conversion (task 1.4 defect fixture)', () => {
   // Guards the fixture path itself. While the test below was `it.failing`, a broken path

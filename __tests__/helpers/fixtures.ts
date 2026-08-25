@@ -292,7 +292,12 @@ export function inspectShapes(storage: string): Shapes {
         headingsInLayoutCells += 1;
       }
       if (layoutDepth > 0) headingInsideThisLayout = true;
-      if (!insideAny(LAYOUT_ELEMENTS) && !inside('ac:rich-text-body') && !inside('td') && !inside('th')) {
+      if (
+        !insideAny(LAYOUT_ELEMENTS) &&
+        !inside('ac:rich-text-body') &&
+        !inside('td') &&
+        !inside('th')
+      ) {
         sawRootHeading = true;
       }
     }

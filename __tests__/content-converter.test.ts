@@ -11,8 +11,8 @@
 
 import { describe, it, expect } from '@jest/globals';
 
-import { convertStorageToMarkdown } from '../src/utils/content-converter.js';
 import { loadFixture } from './helpers/fixtures.js';
+import { convertStorageToMarkdown } from '../src/utils/content-converter.js';
 
 describe('unordered and nested lists (task 3.2)', () => {
   it('puts each unordered item on its own line', () => {

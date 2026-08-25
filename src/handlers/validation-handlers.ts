@@ -20,6 +20,11 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 
 import type { Page } from '../types/index.js';
+import {
+  operationSpan,
+  resolveSectionIn,
+  type ResolvedSection,
+} from '../utils/section-editing.js';
 import { withConfluenceContext } from '../utils/tool-wrapper.js';
 import type { ToolArgs } from '../utils/tool-wrapper.js';
 import {
@@ -32,8 +37,19 @@ import {
 interface ValidateContentArgs extends ToolArgs {
   content: string;
   pageId?: string;
-  allowMarkdownContent?: boolean;
-  confirmConstructRemoval?: boolean;
+  /**
+   * The heading of the section this content will replace. Supply it together with `pageId`
+   * when validating a `replace_confluence_section` fragment.
+   *
+   * Without it, construct-loss compares the fragment against the WHOLE page, so a macro that
+   * lives in some other section reads as "about to be removed" and the fragment is rejected
+   * for a loss that would never happen -- while the real `replace_confluence_section` write
+   * scopes the same check to the replaced span. With it, this tool reproduces that span
+   * exactly, using the same `resolveSection`/`operationSpan` the write path uses.
+   */
+  heading?: string;
+  /** Disambiguates a repeated heading, exactly as the section-edit tools' `occurrence` does. */
+  occurrence?: number;
 }
 
 interface SkippedCheck {
@@ -85,10 +101,11 @@ function buildReport(options: {
   failures: PreflightFailure[];
   instanceName?: string;
   page?: Page;
+  scopedHeading?: ResolvedSection;
   allowMarkdownContent: boolean;
   confirmConstructRemoval: boolean;
 }) {
-  const { failures, page, allowMarkdownContent, confirmConstructRemoval } = options;
+  const { failures, page, scopedHeading, allowMarkdownContent, confirmConstructRemoval } = options;
 
   const skipped: SkippedCheck[] = [];
   if (allowMarkdownContent) {
@@ -185,7 +202,19 @@ export async function handleValidateConfluenceContent(args: ValidateContentArgs)
   const allowMarkdownContent = args.allowMarkdownContent === true;
   const confirmConstructRemoval = args.confirmConstructRemoval === true;
 
-  if (args.pageId === undefined || args.pageId === null || args.pageId === '') {
+  // An empty-string pageId is almost always an unresolved template interpolation, not a
+  // deliberate "validate content-only" request. Silently downgrading the scope would hand back
+  // a clean-looking content-only verdict for a caller that asked to be compared against a page.
+  if (args.pageId === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      '"pageId" was an empty string. Omit the field entirely to run the content-intrinsic ' +
+        'checks, or supply a real page id to also check for macro and layout loss. ' +
+        'Nothing was written.'
+    );
+  }
+
+  if (args.pageId === undefined || args.pageId === null) {
     const failures = await preflightAll({
       content,
       allowMarkdownContent,
@@ -219,9 +248,38 @@ export async function handleValidateConfluenceContent(args: ValidateContentArgs)
         );
       }
 
+      const currentContent = page.body?.storage?.value ?? '';
+
+      // When a heading is supplied, scope construct-loss to the span
+      // `replace_confluence_section` would actually replace -- same resolver, same span
+      // helper, same shape the write path passes (see section-handlers.ts). Without this the
+      // validator answers a different question than the write it is meant to predict.
+      let currentSpan: { start: number; end: number } | undefined;
+      let scopedHeading: ResolvedSection | undefined;
+      if (typeof toolArgs.heading === 'string' && toolArgs.heading.trim() !== '') {
+        try {
+          const section = resolveSectionIn(currentContent, {
+            heading: toolArgs.heading,
+            occurrence: toolArgs.occurrence,
+          });
+          const span = operationSpan(section, 'replace');
+          currentSpan = { start: span.start, end: span.end };
+          scopedHeading = section;
+        } catch (error) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            `Cannot scope validation to heading ${JSON.stringify(toolArgs.heading)}: ` +
+              `${error instanceof Error ? error.message : String(error)} ` +
+              `Nothing was written. Omit "heading" to validate against the whole page, or read ` +
+              `the page with get_confluence_page and pick an addressable heading from its outline.`
+          );
+        }
+      }
+
       const failures = await preflightAll({
         content,
-        currentContent: page.body?.storage?.value ?? '',
+        currentContent,
+        ...(currentSpan ? { currentSpan } : {}),
         allowMarkdownContent: toolArgs.allowMarkdownContent === true,
         confirmConstructRemoval: toolArgs.confirmConstructRemoval === true,
       });
@@ -231,6 +289,7 @@ export async function handleValidateConfluenceContent(args: ValidateContentArgs)
           failures,
           instanceName,
           page,
+          scopedHeading,
           allowMarkdownContent,
           confirmConstructRemoval,
         })

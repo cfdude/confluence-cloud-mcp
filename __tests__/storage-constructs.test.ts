@@ -6,10 +6,9 @@
  * pin behaviour rather than snapshotting whatever the implementation happened to produce.
  */
 
+import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 import { collectConstructs, inventoryStorage } from '../src/utils/storage-constructs.js';
 import { tokenize } from '../src/utils/storage-tokenizer.js';
-
-import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 
 interface Expectation {
   lossy: boolean;

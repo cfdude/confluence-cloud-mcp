@@ -446,7 +446,9 @@ The cheap pre-flight for create_confluence_page, update_confluence_page and the 
 
 WITHOUT pageId, no request is made to Confluence at all, and four checks run: markup that is not well-formed; markdown submitted as storage; this server's "[Confluence Macro: ...]" placeholder text; "$1" markdown-conversion artifacts. That is the COMPLETE verdict for create_confluence_page, append_confluence_section and insert_confluence_section -- none of them removes anything.
 
-WITH pageId, the page is read (and only read) so one further check runs: whether the content drops macros or layouts the page currently has. That comparison is whole-page, exactly matching update_confluence_page. OMIT pageId when validating a fragment for replace_confluence_section -- that tool scopes the same check to the section being replaced, so a whole-page comparison would report macros elsewhere on the page as lost.
+WITH pageId, the page is read (and only read) so one further check runs: whether the content drops macros or layouts the page currently has. By default that comparison is whole-page, exactly matching update_confluence_page.
+
+VALIDATING A replace_confluence_section FRAGMENT? Pass pageId AND heading (plus occurrence if the heading repeats). The comparison is then scoped to the exact span that tool would replace, using the same resolver it uses -- so macros living in OTHER sections are correctly ignored. Passing pageId without heading would report them as about to be lost and reject a fragment that would in fact write cleanly.
 
 Returns "valid" as a boolean for the common case, the checks that ran, any that did not and why, and "problems" ordered as the write path would hit them (the first is the one a write would be rejected on). With pageId it also returns the page's current version, ready to pass as expectedVersion.
 
@@ -467,7 +469,17 @@ A clean result is about CONTENT. A write can still fail afterwards on a stale ex
         pageId: {
           type: 'string',
           description:
-            "Optional: the page this content is destined for. Supply it to also check, against that page's current body, whether the write would drop macros or layouts -- the one check that needs a comparison target. Omit it for create_confluence_page, for append/insert section edits, and for replace_confluence_section fragments (that tool scopes the same check to the replaced section at write time).",
+            "Optional: the page this content is destined for. Supply it to also check, against that page's current body, whether the write would drop macros or layouts -- the one check that needs a comparison target. Also returns the page's current version, ready to pass as expectedVersion. Omit it for create_confluence_page and for append/insert section edits, which remove nothing. For a replace_confluence_section fragment, supply it together with \"heading\".",
+        },
+        heading: {
+          type: 'string',
+          description:
+            'Optional, and only meaningful with pageId: the heading of the section this content will replace. Scopes the macro/layout-loss comparison to exactly the span replace_confluence_section would replace, instead of comparing against the whole page. Without it, a fragment for one section is judged against every macro on the page and rejected for losses that would never occur.',
+        },
+        occurrence: {
+          type: 'number',
+          description:
+            'Optional: 1-based index disambiguating a repeated heading, exactly as the section-edit tools use it. Take it from the outline get_confluence_page returns.',
         },
         allowMarkdownContent: {
           type: 'boolean',

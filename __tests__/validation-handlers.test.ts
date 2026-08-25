@@ -280,3 +280,67 @@ describe('argument validation', () => {
     expect(report.problems).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Gate 2 finding: construct-loss scope for replace_confluence_section fragments
+// ---------------------------------------------------------------------------
+
+describe('heading scopes construct-loss to the replaced span (Gate 2 finding)', () => {
+  // Without `heading`, a fragment destined for ONE section was compared against the WHOLE
+  // page, so a macro living in a different section read as "about to be removed" and the
+  // fragment was rejected for a loss that would never happen. The real
+  // replace_confluence_section write scopes the same check to the replaced span, so the
+  // validator answered a different question than the write it exists to predict.
+  const PAGE_WITH_MACRO_ELSEWHERE =
+    '<h2>Alpha</h2><p>alpha body</p>' +
+    '<h2>Beta</h2><ac:structured-macro ac:name="info"><ac:rich-text-body><p>keep</p></ac:rich-text-body></ac:structured-macro>';
+
+  beforeEach(() => {
+    getConfluencePage.mockResolvedValue(page({ storage: PAGE_WITH_MACRO_ELSEWHERE }));
+  });
+
+  it('rejects a clean Alpha fragment when scope is whole-page', async () => {
+    const report = await validate({ content: '<p>replacement alpha body</p>', pageId: '123456' });
+
+    expect(report.valid).toBe(false);
+    expect(JSON.stringify(report.problems)).toContain('info');
+    expectNothingWritten();
+  });
+
+  it('accepts the same fragment when scoped to its own heading', async () => {
+    const report = await validate({
+      content: '<p>replacement alpha body</p>',
+      pageId: '123456',
+      heading: 'Alpha',
+    });
+
+    expect(report.valid).toBe(true);
+    expectNothingWritten();
+  });
+
+  it('still reports a macro dropped from WITHIN the scoped section', async () => {
+    const report = await validate({ content: '<p>gutted</p>', pageId: '123456', heading: 'Beta' });
+
+    expect(report.valid).toBe(false);
+    expect(JSON.stringify(report.problems)).toContain('info');
+    expectNothingWritten();
+  });
+
+  it('rejects an unknown heading rather than silently falling back to whole-page', async () => {
+    await expect(
+      handleValidateConfluenceContent({
+        content: '<p>x</p>',
+        pageId: '123456',
+        heading: 'Nope',
+      } as never)
+    ).rejects.toThrow(/Cannot scope validation to heading/);
+    expectNothingWritten();
+  });
+
+  it('rejects an empty-string pageId rather than silently downgrading scope', async () => {
+    await expect(
+      handleValidateConfluenceContent({ content: '<p>x</p>', pageId: '' } as never)
+    ).rejects.toThrow(/empty string/i);
+    expectNothingWritten();
+  });
+});

@@ -51,8 +51,8 @@ import {
   handleCreateConfluencePage,
   handleUpdateConfluencePage,
 } from '../src/handlers/page-handlers.js';
-import { versionConflictError } from '../src/utils/write-safety.js';
 import { ConfluenceApiError } from '../src/types/index.js';
+import { versionConflictError } from '../src/utils/write-safety.js';
 
 const MACRO_PAGE =
   '<p>Intro</p><ac:structured-macro ac:name="toc"><ac:parameter ac:name="minLevel">2' +

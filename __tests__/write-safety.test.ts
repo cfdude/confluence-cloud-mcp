@@ -1,6 +1,9 @@
 import { describe, it, expect } from '@jest/globals';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
 
+import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
+import { ConfluenceApiError } from '../src/types/index.js';
+import { tokenize } from '../src/utils/storage-tokenizer.js';
 import {
   PREFLIGHT_CHECK_ORDER,
   assertExpectedVersion,
@@ -16,9 +19,6 @@ import {
   type PreflightCheckName,
   type PreflightInput,
 } from '../src/utils/write-safety.js';
-import { tokenize } from '../src/utils/storage-tokenizer.js';
-import { ConfluenceApiError } from '../src/types/index.js';
-import { listFixtureFiles, loadFixture } from './helpers/fixtures.js';
 
 /** The check that fired, or `null`. Every assertion below is phrased in these terms. */
 async function failingCheck(input: PreflightInput): Promise<string | null> {

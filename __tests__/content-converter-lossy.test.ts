@@ -10,9 +10,9 @@
 
 import { describe, it, expect } from '@jest/globals';
 
+import { loadFixture } from './helpers/fixtures.js';
 import { convertStorage, reconcileModelledElements } from '../src/utils/content-converter.js';
 import { MODELLED_ELEMENTS } from '../src/utils/storage-constructs.js';
-import { loadFixture } from './helpers/fixtures.js';
 
 describe('lossy disclosure (task 3.6)', () => {
   it('reports a page containing a structured macro as lossy and names the macro', () => {

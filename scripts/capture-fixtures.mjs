@@ -32,8 +32,9 @@ const SANITIZER_VERSION = 1;
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE_DIR = join(REPO_ROOT, '__tests__', 'fixtures');
 const MANIFEST_PATH = join(FIXTURE_DIR, 'manifest.json');
-const CONFIG_PATH = (process.env.CONFLUENCE_CONFIG_FILE || join(homedir(), '.confluence-config.json'))
-  .replace(/^~/, homedir());
+const CONFIG_PATH = (
+  process.env.CONFLUENCE_CONFIG_FILE || join(homedir(), '.confluence-config.json')
+).replace(/^~/, homedir());
 
 /** The ONLY instance key and domain this script will ever talk to. */
 const ALLOWED_INSTANCE = 'onvex';
@@ -435,7 +436,8 @@ function resolveOnvexInstance(instanceKey) {
       fail(`domain "${domain}" matches denied substring "${denied}". No request was made.`);
     }
   }
-  if (!entry.email || !entry.apiToken) fail(`instance "${instanceKey}" has no basic-auth credentials`);
+  if (!entry.email || !entry.apiToken)
+    fail(`instance "${instanceKey}" has no basic-auth credentials`);
   return { domain: entry.domain, email: entry.email, apiToken: entry.apiToken };
 }
 
@@ -487,7 +489,9 @@ async function main() {
 
   if (args.inspect) {
     const { counts, shapes } = inspectStructure(storage);
-    console.log(JSON.stringify({ page: args.page, bytes: storage.length, shapes, counts }, null, 2));
+    console.log(
+      JSON.stringify({ page: args.page, bytes: storage.length, shapes, counts }, null, 2)
+    );
     return;
   }
 
@@ -515,9 +519,7 @@ async function main() {
   writeManifest(manifest);
 
   const { shapes } = inspectStructure(sanitized);
-  console.log(
-    JSON.stringify({ wrote: file, bytes: sanitized.length, shapes }, null, 2)
-  );
+  console.log(JSON.stringify({ wrote: file, bytes: sanitized.length, shapes }, null, 2));
 }
 
 // Only run the CLI when executed directly, so the scanner/sanitizer can be imported by

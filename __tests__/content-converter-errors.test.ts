@@ -18,12 +18,12 @@
 
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 
+import { loadFixture } from './helpers/fixtures.js';
 import {
   convertStorage,
   convertStorageToMarkdown,
   internals,
 } from '../src/utils/content-converter.js';
-import { loadFixture } from './helpers/fixtures.js';
 
 afterEach(() => {
   jest.restoreAllMocks();
