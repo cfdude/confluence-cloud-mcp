@@ -67,7 +67,14 @@ interface Report {
   instance?: string;
   valid: boolean;
   scope: string;
-  page?: { pageId: string; title: string; version: number; note: string };
+  page?: {
+    pageId: string;
+    title: string;
+    version: number;
+    note: string;
+    scopedToHeading?: string;
+    scopedToOccurrence?: number;
+  };
   checksRun: string[];
   checksSkipped?: { check: string; reason: string }[];
   overridesApplied?: Record<string, boolean>;
@@ -195,7 +202,7 @@ describe('with pageId', () => {
     expect(getConfluencePage).toHaveBeenCalledTimes(1);
     expect(getConfluencePage).toHaveBeenCalledWith('123456');
     expect(report.valid).toBe(true);
-    expect(report.scope).toBe('content-and-page');
+    expect(report.scope).toBe('content-and-whole-page');
     expect(report.checksRun).toContain('construct-loss');
     expect(report.checksSkipped).toBeUndefined();
     expect(report.page).toEqual({
@@ -315,6 +322,26 @@ describe('heading scopes construct-loss to the replaced span (Gate 2 finding)', 
     });
 
     expect(report.valid).toBe(true);
+    expectNothingWritten();
+  });
+
+  it('reports the scope that actually ran, not the whole-page warning', async () => {
+    const scoped = await validate({
+      content: '<p>replacement alpha body</p>',
+      pageId: '123456',
+      heading: 'Alpha',
+    });
+
+    expect(scoped.scope).toBe('content-and-section-span');
+    expect(scoped.page?.scopedToHeading).toBe('Alpha');
+    expect(scoped.page?.note).toContain('scoped to the section');
+    // The whole-page warning told the caller to OMIT pageId -- which would cost it the
+    // expectedVersion it needs. It must not appear on a correctly scoped response.
+    expect(scoped.page?.note).not.toContain('OMIT pageId');
+
+    const wholePage = await validate({ content: '<p>x</p>', pageId: '123456' });
+    expect(wholePage.scope).toBe('content-and-whole-page');
+    expect(wholePage.page?.note).toContain('WHOLE page body');
     expectNothingWritten();
   });
 

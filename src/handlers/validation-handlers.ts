@@ -74,6 +74,12 @@ const SECTION_SCOPE_NOTE =
   'OMIT pageId: that tool scopes construct-loss to the section being replaced, so a ' +
   'whole-page comparison would report macros elsewhere on the page as lost.';
 
+const SCOPED_SPAN_NOTE =
+  'construct-loss here was scoped to the section named by "heading", exactly as ' +
+  'replace_confluence_section scopes it at write time -- macros elsewhere on the page were ' +
+  'correctly ignored. Drop "heading" to compare against the whole page body instead, which ' +
+  'is what update_confluence_page does.';
+
 const CONTENT_ONLY_NOTE =
   'construct-loss is the only check that needs a comparison target, and no pageId was ' +
   'supplied, so it was not evaluated. That makes this verdict complete for ' +
@@ -101,7 +107,8 @@ function buildReport(options: {
   allowMarkdownContent: boolean;
   confirmConstructRemoval: boolean;
 }) {
-  const { failures, page, allowMarkdownContent, confirmConstructRemoval } = options;
+  const { failures, page, scopedHeading, allowMarkdownContent, confirmConstructRemoval } =
+    options;
 
   const skipped: SkippedCheck[] = [];
   if (allowMarkdownContent) {
@@ -153,7 +160,12 @@ function buildReport(options: {
   return {
     ...(options.instanceName === undefined ? {} : { instance: options.instanceName }),
     valid,
-    scope: page === undefined ? 'content-only' : 'content-and-page',
+    scope:
+      page === undefined
+        ? 'content-only'
+        : scopedHeading === undefined
+          ? 'content-and-whole-page'
+          : 'content-and-section-span',
     ...(page === undefined
       ? {}
       : {
@@ -161,9 +173,17 @@ function buildReport(options: {
             pageId: page.id,
             title: page.title,
             version: page.version.number,
+            ...(scopedHeading === undefined
+              ? {}
+              : { scopedToHeading: scopedHeading.text, scopedToOccurrence: scopedHeading.occurrence }),
             note:
               `Pass version ${page.version.number} as expectedVersion on the write this ` +
-              `content is for. ${SECTION_SCOPE_NOTE}`,
+              `content is for. ` +
+              // The note must describe the comparison that ACTUALLY ran. Emitting the
+              // whole-page warning on a heading-scoped call told the caller to stop doing the
+              // very thing that made the verdict correct -- and would have cost it the
+              // expectedVersion it needs on the next call.
+              (scopedHeading === undefined ? SECTION_SCOPE_NOTE : SCOPED_SPAN_NOTE),
           },
         }),
     checksRun,
