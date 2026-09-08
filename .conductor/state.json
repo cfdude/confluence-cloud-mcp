@@ -56,7 +56,12 @@
         ],
         "notifications": []
       },
-      "completedAt": "2026-08-25T16:49:39.962Z"
+      "completedAt": "2026-08-25T16:49:39.962Z",
+      "disposition": {
+        "outcome": "delivered",
+        "recordedAt": "2026-08-25T16:49:39.962Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "content-validator",
@@ -80,7 +85,12 @@
           "note": "fresh-context impl review; FAIL on whole-page construct-loss scope trap for section fragments, fixed with heading/occurrence scoping; re-review FAIL on stale page.note contradicting the scoped verdict, fixed; agreement property verified structurally"
         }
       },
-      "completedAt": "2026-08-25T20:00:33.692Z"
+      "completedAt": "2026-08-25T20:00:33.692Z",
+      "disposition": {
+        "outcome": "delivered",
+        "recordedAt": "2026-08-25T20:00:33.692Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "tool-doc-overhaul",
@@ -96,7 +106,12 @@
         }
       ],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T19:31:49.834Z"
+      "completedAt": "2026-08-25T19:31:49.834Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T19:31:49.834Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "deps-security-sweep",
@@ -107,7 +122,12 @@
       "lane": "superpowers",
       "links": [],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T19:34:49.548Z"
+      "completedAt": "2026-08-25T19:34:49.548Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T19:34:49.548Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "repo-maintainer-cleanup",
@@ -118,7 +138,12 @@
       "lane": "claude-code",
       "links": [],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T19:40:36.092Z"
+      "completedAt": "2026-08-25T19:40:36.092Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T19:40:36.092Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "test-coverage-baseline",
@@ -129,7 +154,12 @@
       "lane": "superpowers",
       "links": [],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T20:04:59.353Z"
+      "completedAt": "2026-08-25T20:04:59.353Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T20:04:59.353Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "repair-corrupted-pages",
@@ -145,7 +175,12 @@
         }
       ],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T19:46:01.632Z"
+      "completedAt": "2026-08-25T19:46:01.632Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T19:46:01.632Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "page-status-type-fix",
@@ -156,7 +191,12 @@
       "lane": "claude-code",
       "links": [],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T19:24:15.679Z"
+      "completedAt": "2026-08-25T19:24:15.679Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T19:24:15.679Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "repair-pages-manual-merge",
@@ -183,7 +223,12 @@
       "links": [],
       "reconcileNeeded": false,
       "startedAt": "2026-08-25T21:56:26.991Z",
-      "completedAt": "2026-08-25T22:28:53.054Z"
+      "completedAt": "2026-08-25T22:28:53.054Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T22:28:53.054Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "reenable-security-scans",
@@ -194,7 +239,12 @@
       "lane": "claude-code",
       "links": [],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T21:56:20.399Z"
+      "completedAt": "2026-08-25T21:56:20.399Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T21:56:20.399Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "client-error-mapping",
@@ -205,7 +255,12 @@
       "lane": "superpowers",
       "links": [],
       "reconcileNeeded": false,
-      "completedAt": "2026-08-25T22:44:49.316Z"
+      "completedAt": "2026-08-25T22:44:49.316Z",
+      "disposition": {
+        "outcome": "unknown",
+        "recordedAt": "2026-08-25T22:44:49.316Z",
+        "recordedBy": "migration"
+      }
     },
     {
       "id": "set-content-property-decision",
@@ -219,7 +274,7 @@
     }
   ],
   "detourStack": [],
-  "revision": 35,
-  "pmVersion": "0.26.0",
+  "revision": 36,
+  "pmVersion": "0.39.0",
   "platform": "claude-code"
 }
